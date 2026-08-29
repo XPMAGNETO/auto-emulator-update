@@ -14,8 +14,6 @@ public sealed class PlatformService
     public bool IsBatocera => LinuxDistribution == "batocera";
     public bool HasRetroBat => OperatingSystem.IsWindows() && _hasRetroBat.Value;
 
-    // All supported Linux distributions consume Linux emulator manifests/assets.
-    // RuntimeId remains distribution-specific so diagnostics and UI can distinguish them.
     public string Os =>
         OperatingSystem.IsWindows() ? "windows" :
         OperatingSystem.IsMacOS() ? "macos" :
@@ -54,8 +52,6 @@ public sealed class PlatformService
         _ => $"{Os}-{Arch}"
     };
 
-    // Batocera owns and updates its built-in emulator stack. Auto Emulator Update
-    // should only manage standalone/user-installed emulators stored under /userdata.
     public bool SystemOwnsBuiltInEmulators => IsBatocera;
 
     public IEnumerable<string> DefaultSearchRoots()
@@ -65,10 +61,20 @@ public sealed class PlatformService
         {
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady &&
                          (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
+                yield return drive.RootDirectory.FullName;
+
+            foreach (var path in new[]
             {
-                foreach (var sub in new[] { "Emulators", "Emulator", "Games", @"LaunchBox\Emulators", "RetroBat", "ES-DE" })
-                    yield return Path.Combine(drive.RootDirectory.FullName, sub);
-            }
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Emulators"),
+                Path.Combine(home, "Games")
+            }.Where(p => !string.IsNullOrWhiteSpace(p)))
+                yield return path;
         }
         else if (OperatingSystem.IsMacOS())
         {
@@ -78,8 +84,6 @@ public sealed class PlatformService
         }
         else if (IsBatocera)
         {
-            // Batocera's system image owns the bundled emulator binaries. Restrict
-            // discovery to writable userdata so we never replace system-managed files.
             yield return "/userdata/system/auto-emulator-update/emulators";
             yield return "/userdata/system/emulators";
             yield return "/userdata/system/apps";
@@ -161,8 +165,6 @@ public sealed class PlatformService
                 if (distro != "linux") return distro;
             }
 
-            // Batocera provides its own update utilities. This fallback helps on
-            // images where /etc/os-release is unusually minimal.
             if (File.Exists("/usr/bin/batocera-check-updates") || File.Exists("/usr/bin/batocera-upgrade"))
                 return "batocera";
         }
@@ -178,14 +180,39 @@ public sealed class PlatformService
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady &&
                          (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
             {
-                var root = Path.Combine(drive.RootDirectory.FullName, "RetroBat");
-                if (File.Exists(Path.Combine(root, "retrobat.exe")) ||
-                    File.Exists(Path.Combine(root, "RetroBat.exe")) ||
-                    Directory.Exists(Path.Combine(root, "emulators")))
-                    return true;
+                var queue = new Queue<(string path, int depth)>();
+                queue.Enqueue((drive.RootDirectory.FullName, 0));
+                var visited = 0;
+                while (queue.Count > 0 && visited < 30000)
+                {
+                    var (dir, depth) = queue.Dequeue();
+                    visited++;
+                    string[] children;
+                    try { children = Directory.GetDirectories(dir); } catch { continue; }
+                    foreach (var child in children)
+                    {
+                        var name = Path.GetFileName(child);
+                        if (name.Equals("RetroBat", StringComparison.OrdinalIgnoreCase) &&
+                            (File.Exists(Path.Combine(child, "retrobat.exe")) ||
+                             File.Exists(Path.Combine(child, "RetroBat.exe")) ||
+                             Directory.Exists(Path.Combine(child, "emulators"))))
+                            return true;
+                        if (depth < 5 && !IsSkippedWindowsDirectory(name))
+                            queue.Enqueue((child, depth + 1));
+                    }
+                }
             }
         }
         catch { }
         return false;
     }
+
+    internal static bool IsSkippedWindowsDirectory(string name) =>
+        name.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("WinSxS", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("Recovery", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals(".git", StringComparison.OrdinalIgnoreCase);
 }
