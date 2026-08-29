@@ -33,7 +33,7 @@ public sealed class VersionService
 
         var cs = ParseSemVer(c);
         var ls = ParseSemVer(l);
-        if (cs is not null && ls is not null) return cs.Value.CompareTo(ls.Value);
+        if (cs is not null && ls is not null) return cs.CompareTo(ls);
 
         return StringComparer.OrdinalIgnoreCase.Compare(c, l);
     }
