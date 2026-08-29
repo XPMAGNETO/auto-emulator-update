@@ -23,7 +23,7 @@ public partial class App : Application
             {
                 var wizard = new FirstRunWindow();
                 wizard.DataContext = await FirstRunWindowViewModel.CreateAsync(wizard);
-                await wizard.ShowDialog<bool?>(null);
+                await wizard.ShowDialog<bool?>(null!);
                 settings = await store.LoadAsync(paths.SettingsFile, new AppSettings());
             }
 
@@ -32,10 +32,6 @@ public partial class App : Application
             main.DataContext = vm;
             desktop.MainWindow = main;
 
-            // "Background mode" is implemented as close-to-background behavior
-            // where the platform supports a persistent desktop lifetime.
-            // The normal window remains the primary UI; packaging can add native
-            // tray integration later without changing updater services.
             if (settings.BackgroundMode)
             {
                 main.Closing += (_, e) =>
