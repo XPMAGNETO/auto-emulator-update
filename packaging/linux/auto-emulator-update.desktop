@@ -4,5 +4,5 @@ Name=Auto Emulator Updater
 Comment=Keep emulator installations current
 Exec=AutoEmulatorUpdate.App
 Icon=auto-emulator-update
-Categories=Game;Utility;
+Categories=Utility;Emulator;
 Terminal=false
