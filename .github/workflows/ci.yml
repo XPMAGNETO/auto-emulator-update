@@ -3,10 +3,32 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
   build-and-test:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -14,19 +36,35 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
-      - run: dotnet restore
-      - run: dotnet build -c Release --no-restore
-      - run: dotnet test -c Release --no-build
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test -c Release --no-build --no-restore
 
       - name: Publish and launch Windows smoke build
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          dotnet restore src/AutoEmulatorUpdate.App -r win-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/smoke
           & .\artifacts\smoke\AutoEmulatorUpdate.App.exe --smoke-test
           if ($LASTEXITCODE -ne 0) { throw "Windows startup smoke test failed with exit code $LASTEXITCODE" }
@@ -34,14 +72,15 @@ jobs:
       - name: Install Linux GUI smoke-test dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libx11-6 libice6 libsm6 libfontconfig1
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends xvfb libx11-6 libice6 libsm6 libfontconfig1
 
       - name: Publish and launch Linux smoke build
         if: runner.os == 'Linux'
         run: |
+          dotnet restore src/AutoEmulatorUpdate.App -r linux-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/smoke
           chmod +x artifacts/smoke/AutoEmulatorUpdate.App
           xvfb-run -a ./artifacts/smoke/AutoEmulatorUpdate.App --smoke-test
@@ -50,8 +89,9 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           if [[ "$(uname -m)" == "arm64" ]]; then RID=osx-arm64; else RID=osx-x64; fi
+          dotnet restore src/AutoEmulatorUpdate.App -r "$RID"
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r "$RID" --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/smoke
           chmod +x artifacts/smoke/AutoEmulatorUpdate.App
           ./artifacts/smoke/AutoEmulatorUpdate.App --smoke-test

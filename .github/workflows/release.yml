@@ -4,28 +4,53 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - 'release-v10.1.0-alpha.3'
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
-  RELEASE_VERSION: v10.1.0-alpha.3
+  RELEASE_VERSION: ${{ github.ref_name }}
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
   windows:
+    timeout-minutes: 30
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ("v$version" -ne "${{ env.RELEASE_VERSION }}") {
+            throw "VERSION ($version) does not match tag ${{ env.RELEASE_VERSION }}"
+          }
+          $iss = Get-Content packaging/windows/AutoEmulatorUpdate.iss -Raw
+          if ($iss -notmatch [regex]::Escape("#define MyAppVersion `"$version`"")) {
+            throw "Windows installer version does not match VERSION ($version)"
+          }
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-Windows-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-Windows-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish Windows x64
         shell: pwsh
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/win-x64
       - name: Install Inno Setup
         shell: pwsh
@@ -41,34 +66,49 @@ jobs:
         with:
           name: windows-installer
           path: artifacts/release/*
+          if-no-files-found: error
 
   linux:
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Validate release version
+        run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-Linux-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-Linux-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish Linux x64
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/linux-x64
-      - name: Build Linux and SteamOS AppImages
+      - name: Build Linux-family AppImages
         run: |
-          sudo apt-get update
-          sudo apt-get install -y fuse file
-          curl -L -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fuse file
+          curl -fsSL -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool packaging/linux/build-appimage.sh packaging/linux/build-deb.sh
           APPIMAGETOOL="$PWD/appimagetool" packaging/linux/build-appimage.sh linux-x64
           mv artifacts/AutoEmulatorUpdate-linux-x64.AppImage "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage"
-          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-SteamOS-x64.AppImage"
-          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-PopOS-x64.AppImage"
-          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-CachyOS-x64.AppImage"
-          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Batocera-x64.AppImage"
+          for name in SteamOS PopOS CachyOS Batocera; do
+            cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-${name}-x64.AppImage"
+          done
           for f in artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-*.AppImage; do sha256sum "$f" > "$f.sha256"; done
-      - name: Build DEB
-        run: packaging/linux/build-deb.sh linux-x64 || true
+      - name: Build and validate DEB
+        run: |
+          packaging/linux/build-deb.sh linux-x64
+          VERSION="$(tr -d '\r\n' < VERSION)"
+          DEB="artifacts/AutoEmulatorUpdate-${VERSION}-linux-x64.deb"
+          test -s "$DEB"
+          test "$(dpkg-deb -f "$DEB" Version)" = "${VERSION%%-*}"
       - uses: actions/upload-artifact@v7
         with:
           name: linux-packages
@@ -76,8 +116,10 @@ jobs:
             artifacts/*.AppImage
             artifacts/*.sha256
             artifacts/*.deb
+          if-no-files-found: error
 
   macos:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -89,13 +131,22 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
+      - name: Validate release version
+        run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-macOS-${{ matrix.rid }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-macOS-${{ matrix.rid }}-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/${{ matrix.rid }}
       - name: Build DMG
         run: |
@@ -107,26 +158,43 @@ jobs:
         with:
           name: macos-${{ matrix.rid }}
           path: artifacts/*.dmg*
+          if-no-files-found: error
 
   release:
     needs: [windows, linux, macos]
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: release-assets
           merge-multiple: true
-      - name: Generate update manifest
+      - name: Generate and validate update manifest
         run: |
           python - <<'PY'
-          import json, glob, os
+          import glob, json, os, sys
+          version = os.environ['RELEASE_VERSION']
           files = sorted(os.path.basename(x) for x in glob.glob('release-assets/*'))
-          json.dump({"version":"v10.1.0-alpha.3","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
+          required = [
+              f'AutoEmulatorUpdate-{version}-Windows-Setup.exe',
+              f'AutoEmulatorUpdate-{version}-Linux-x64.AppImage',
+              f'AutoEmulatorUpdate-{version}-SteamOS-x64.AppImage',
+              f'AutoEmulatorUpdate-{version}-PopOS-x64.AppImage',
+              f'AutoEmulatorUpdate-{version}-CachyOS-x64.AppImage',
+              f'AutoEmulatorUpdate-{version}-Batocera-x64.AppImage',
+              f'AutoEmulatorUpdate-{version}-osx-x64.dmg',
+              f'AutoEmulatorUpdate-{version}-osx-arm64.dmg',
+          ]
+          missing = [x for x in required if x not in files]
+          if missing:
+              print('Missing release assets:', *missing, sep='\n- ', file=sys.stderr)
+              sys.exit(1)
+          json.dump({'version': version, 'assets': files}, open('release-assets/update-manifest.json', 'w'), indent=2)
           PY
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v10.1.0-alpha.3
-          name: Auto Emulator Update v10.1.0-alpha.3
+          tag_name: ${{ env.RELEASE_VERSION }}
+          name: Auto Emulator Update ${{ env.RELEASE_VERSION }}
           prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
