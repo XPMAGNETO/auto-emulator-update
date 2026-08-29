@@ -5,13 +5,13 @@ on:
     tags:
       - 'v*'
     branches:
-      - 'release-v10.1.0-alpha.1'
+      - 'release-v10.1.0-alpha.3'
 
 permissions:
   contents: write
 
 env:
-  RELEASE_VERSION: v10.1.0-alpha.1
+  RELEASE_VERSION: v10.1.0-alpha.3
 
 jobs:
   windows:
@@ -63,8 +63,10 @@ jobs:
           APPIMAGETOOL="$PWD/appimagetool" packaging/linux/build-appimage.sh linux-x64
           mv artifacts/AutoEmulatorUpdate-linux-x64.AppImage "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage"
           cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-SteamOS-x64.AppImage"
-          sha256sum "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" > "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage.sha256"
-          sha256sum "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-SteamOS-x64.AppImage" > "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-SteamOS-x64.AppImage.sha256"
+          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-PopOS-x64.AppImage"
+          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-CachyOS-x64.AppImage"
+          cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Batocera-x64.AppImage"
+          for f in artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-*.AppImage; do sha256sum "$f" > "$f.sha256"; done
       - name: Build DEB
         run: packaging/linux/build-deb.sh linux-x64 || true
       - uses: actions/upload-artifact@v4
@@ -77,9 +79,14 @@ jobs:
 
   macos:
     strategy:
+      fail-fast: false
       matrix:
-        rid: [osx-x64, osx-arm64]
-    runs-on: macos-latest
+        include:
+          - rid: osx-x64
+            runner: macos-15-intel
+          - rid: osx-arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v6
@@ -114,12 +121,12 @@ jobs:
           python - <<'PY'
           import json, glob, os
           files = sorted(os.path.basename(x) for x in glob.glob('release-assets/*'))
-          json.dump({"version":"v10.1.0-alpha.1","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
+          json.dump({"version":"v10.1.0-alpha.3","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
           PY
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v10.1.0-alpha.1
-          name: Auto Emulator Update v10.1.0-alpha.1
+          tag_name: v10.1.0-alpha.3
+          name: Auto Emulator Update v10.1.0-alpha.3
           prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
