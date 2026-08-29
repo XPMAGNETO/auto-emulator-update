@@ -32,6 +32,7 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .bootstrap -exec rm -rf {} +
           cp -a "$project_root"/. ./
           sed -i 's#OWNER/auto-emulator-update#xpm69420/auto-emulator-update#g' src/AutoEmulatorUpdate.Core/BuildInfo.cs
+          sed -i 's#actions/checkout@v4#actions/checkout@v5#g' .github/workflows/*.yml
           rm -rf .bootstrap
           rm -f .github/workflows/bootstrap-project.yml
           git config user.name "github-actions[bot]"
