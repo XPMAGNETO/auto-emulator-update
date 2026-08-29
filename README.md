@@ -9,17 +9,39 @@ You should not need PowerShell, a terminal, JSON files, or the .NET SDK.
 On the GitHub **Releases** page download:
 
 - **Windows:** `AutoEmulatorUpdate-...-Windows-Setup.exe`
+- **RetroBat:** use the Windows installer; RetroBat is detected as a Windows frontend, including portable installs on USB/removable drives.
 - **SteamOS / Steam Deck:** `AutoEmulatorUpdate-...-SteamOS-x64.AppImage`
-- **Linux:** `AutoEmulatorUpdate-...-Linux-x64.AppImage` or the `.deb`
-- **macOS:** the `.dmg` matching Intel (`osx-x64`) or Apple Silicon (`osx-arm64`)
+- **Pop!_OS:** use the Linux x64 AppImage or `.deb`.
+- **CachyOS:** use the Linux x64 AppImage; Auto Emulator Update detects CachyOS separately while using compatible Linux emulator packages.
+- **Batocera:** detected separately. Built-in Batocera emulators remain Batocera-managed; Auto Emulator Update only manages standalone emulators stored in writable `/userdata` locations.
+- **Other Linux:** `AutoEmulatorUpdate-...-Linux-x64.AppImage` or the `.deb` where appropriate.
+- **macOS:** the `.dmg` matching Intel (`osx-x64`) or Apple Silicon (`osx-arm64`).
 
 After the first install, the app can check for newer Auto Emulator Update releases itself.
 
-## SteamOS / Steam Deck
+## Linux distribution support
 
-SteamOS is detected separately from generic Linux while reusing Linux-compatible emulator packages. Auto Emulator Update looks in SteamOS-friendly writable locations such as the user's Applications/Emulators folders, Flatpak export/config locations, and `/run/media` for removable or microSD storage.
+Auto Emulator Update reads `/etc/os-release` and recognizes SteamOS, Pop!_OS, CachyOS and Batocera as distinct environments while continuing to use Linux-compatible emulator manifests and packages.
 
-The SteamOS build is distributed as an AppImage so Auto Emulator Update does not need to disable the SteamOS read-only system image or install files with `pacman`. Run it from Desktop Mode; it can then be added to Steam as a Non-Steam application for access from Gaming Mode.
+### SteamOS / Steam Deck
+
+SteamOS uses writable user-space locations and removable/microSD storage. Auto Emulator Update looks in user Applications/Emulators folders, Flatpak export/config locations and `/run/media`. The dedicated SteamOS AppImage does not require disabling the SteamOS read-only system image.
+
+### Pop!_OS
+
+Pop!_OS uses the normal Linux update path. The application identifies Pop!_OS in diagnostics and uses the standard Linux AppImage/DEB-compatible workflow.
+
+### CachyOS
+
+CachyOS uses the normal Linux update path while being identified separately in diagnostics. Auto Emulator Update does not enable or modify CachyOS/Arch repositories; emulator packages continue to come from each emulator project's supported update source.
+
+### Batocera
+
+Batocera manages its bundled emulator stack through Batocera's own system updater. Auto Emulator Update deliberately does not replace those built-in binaries. Standalone emulator installs created by Auto Emulator Update go under:
+
+`/userdata/system/auto-emulator-update/emulators`
+
+Discovery is restricted to writable `/userdata` locations on Batocera so system-managed emulator files remain untouched.
 
 ## First launch
 
@@ -52,7 +74,9 @@ The **Available to install** tab lets the user search supported emulators and in
 
 ## Frontends
 
-The importer can discover emulator executable paths from supported frontend configurations, including the existing LaunchBox / RetroBat / ES-DE / Pegasus / Playnite-style configuration framework.
+The importer can discover emulator executable paths from supported frontend configurations, including LaunchBox, RetroBat, ES-DE, Pegasus and Playnite-style configurations.
+
+RetroBat is officially a Windows frontend rather than a separate operating system. Auto Emulator Update scans both fixed and removable Windows drives for portable RetroBat installations.
 
 If a frontend manages its own emulator updates, Auto Emulator Update can leave that install frontend-managed.
 
