@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using AutoEmulatorUpdate.Core.Models;
 using AutoEmulatorUpdate.Core.Services;
 
@@ -9,6 +10,8 @@ namespace AutoEmulatorUpdate.App;
 
 public partial class MainWindow : Window
 {
+    private MainWindowViewModel? _boundInstalledViewModel;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -17,14 +20,40 @@ public partial class MainWindow : Window
         {
             try
             {
-                using var iconStream = AssetLoader.Open(new Uri("avares://AutoEmulatorUpdate.App/Assets/app-icon.ico"));
+                using var iconStream = AssetLoader.Open(new Uri("avares://AutoEmulatorUpdate.App/Assets/app-icon.png"));
                 Icon = new WindowIcon(iconStream);
             }
             catch
             {
-                // The executable still carries the Windows icon even if the runtime window icon cannot be loaded.
+                // The executable and installed shortcuts still carry the Windows icon.
             }
         }
+
+        DataContextChanged += (_, _) => BindInstalledGrid();
+    }
+
+    private void BindInstalledGrid()
+    {
+        var grid = this.FindControl<DataGrid>("InstalledGrid");
+        if (grid is null || DataContext is not MainWindowViewModel vm) return;
+        if (ReferenceEquals(_boundInstalledViewModel, vm)) return;
+
+        _boundInstalledViewModel = vm;
+        grid.ItemsSource = vm.Installed;
+        vm.Installed.CollectionChanged += (_, _) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Force a safe UI-thread refresh. This also covers discovery/import work
+                // that completes on a worker continuation on some desktop runtimes.
+                var selected = grid.SelectedItem;
+                grid.ItemsSource = null;
+                grid.ItemsSource = vm.Installed;
+                grid.SelectedItem = selected;
+                grid.InvalidateMeasure();
+                grid.InvalidateVisual();
+            });
+        };
     }
 
     private async void ReportProblem_Click(object? sender, RoutedEventArgs e)
@@ -48,9 +77,9 @@ public partial class MainWindow : Window
 
             RevealFile(zip);
 
-            var title = Uri.EscapeDataString($"Bug report - Auto Emulator Update v{AutoEmulatorUpdate.Core.BuildInfo.Version}");
+            var title = Uri.EscapeDataString($"Bug report - Auto Emulator Updater v{AutoEmulatorUpdate.Core.BuildInfo.Version}");
             var body = Uri.EscapeDataString(
-                $"Auto Emulator Update version: {AutoEmulatorUpdate.Core.BuildInfo.Version}\n" +
+                $"Auto Emulator Updater version: {AutoEmulatorUpdate.Core.BuildInfo.Version}\n" +
                 $"Platform: {Environment.OSVersion}\n\n" +
                 "What happened?\nPlease describe what you were doing and what you expected to happen.\n\n" +
                 "Steps to reproduce:\n1. \n2. \n3. \n\n" +
@@ -58,7 +87,7 @@ public partial class MainWindow : Window
                 "Please drag and drop that ZIP into this issue before submitting it.\n\n" +
                 "Privacy note: emulator install paths are omitted from the public diagnostic summary.");
 
-            var url = $"https://github.com/xpm69420/auto-emulator-update/issues/new?title={title}&body={body}";
+            var url = $"https://github.com/XPMAGNETO/auto-emulator-update/issues/new?title={title}&body={body}";
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
         catch (Exception ex)
