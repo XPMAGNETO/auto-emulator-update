@@ -53,9 +53,11 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .bootstrap -exec rm -rf {} +
           cp -a "$project_root"/. ./
           sed -i 's#OWNER/auto-emulator-update#xpm69420/auto-emulator-update#g' src/AutoEmulatorUpdate.Core/BuildInfo.cs
-          # The Actions token cannot modify workflow files. Keep the current
-          # bootstrap workflow unchanged; ChatGPT will install CI/release
-          # workflows directly after this source import succeeds.
+          # GitHub's Actions token cannot modify workflow files. Remove all
+          # workflow files copied from the payload, then restore only the
+          # currently tracked bootstrap workflow so this commit has no
+          # .github/workflows changes.
+          rm -rf .github/workflows
           git checkout HEAD -- .github/workflows
           rm -rf .bootstrap
           git config user.name "github-actions[bot]"
