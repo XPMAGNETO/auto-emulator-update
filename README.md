@@ -9,10 +9,17 @@ You should not need PowerShell, a terminal, JSON files, or the .NET SDK.
 On the GitHub **Releases** page download:
 
 - **Windows:** `AutoEmulatorUpdate-...-Windows-Setup.exe`
+- **SteamOS / Steam Deck:** `AutoEmulatorUpdate-...-SteamOS-x64.AppImage`
 - **Linux:** `AutoEmulatorUpdate-...-Linux-x64.AppImage` or the `.deb`
 - **macOS:** the `.dmg` matching Intel (`osx-x64`) or Apple Silicon (`osx-arm64`)
 
 After the first install, the app can check for newer Auto Emulator Update releases itself.
+
+## SteamOS / Steam Deck
+
+SteamOS is detected separately from generic Linux while reusing Linux-compatible emulator packages. Auto Emulator Update looks in SteamOS-friendly writable locations such as the user's Applications/Emulators folders, Flatpak export/config locations, and `/run/media` for removable or microSD storage.
+
+The SteamOS build is distributed as an AppImage so Auto Emulator Update does not need to disable the SteamOS read-only system image or install files with `pacman`. Run it from Desktop Mode; it can then be added to Steam as a Non-Steam application for access from Gaming Mode.
 
 ## First launch
 
@@ -98,4 +105,4 @@ git tag v10.1.0-alpha.1
 git push origin v10.1.0-alpha.1
 ```
 
-GitHub Actions creates Windows Setup.exe, Linux AppImage/DEB, and macOS DMGs.
+GitHub Actions creates Windows Setup.exe, Linux/SteamOS AppImages, Linux DEB, and macOS DMGs.
