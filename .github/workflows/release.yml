@@ -1,0 +1,115 @@
+name: End-user Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish Windows x64
+        shell: pwsh
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o artifacts/win-x64
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/windows/AutoEmulatorUpdate.iss
+          New-Item -ItemType Directory -Force -Path artifacts/release | Out-Null
+          Copy-Item packaging/windows/Output/AutoEmulatorUpdate-Setup.exe artifacts/release/AutoEmulatorUpdate-${{ github.ref_name }}-Windows-Setup.exe
+          (Get-FileHash artifacts/release/AutoEmulatorUpdate-${{ github.ref_name }}-Windows-Setup.exe -Algorithm SHA256).Hash.ToLower() + "  AutoEmulatorUpdate-${{ github.ref_name }}-Windows-Setup.exe" | Set-Content artifacts/release/AutoEmulatorUpdate-${{ github.ref_name }}-Windows-Setup.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: artifacts/release/*
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish Linux x64
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/linux-x64
+      - name: Build AppImage
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse file
+          curl -L -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool packaging/linux/build-appimage.sh packaging/linux/build-deb.sh
+          APPIMAGETOOL="$PWD/appimagetool" packaging/linux/build-appimage.sh linux-x64
+          mv artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-Linux-x64.AppImage
+          sha256sum artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-Linux-x64.AppImage > artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-Linux-x64.AppImage.sha256
+      - name: Build DEB
+        run: packaging/linux/build-deb.sh linux-x64 || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            artifacts/*.AppImage
+            artifacts/*.sha256
+            artifacts/*.deb
+
+  macos:
+    strategy:
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/${{ matrix.rid }}
+      - name: Build DMG
+        run: |
+          chmod +x packaging/macos/build-dmg.sh
+          packaging/macos/build-dmg.sh ${{ matrix.rid }}
+          mv artifacts/AutoEmulatorUpdate-*-${{ matrix.rid }}.dmg artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-${{ matrix.rid }}.dmg
+          shasum -a 256 artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-${{ matrix.rid }}.dmg > artifacts/AutoEmulatorUpdate-${{ github.ref_name }}-${{ matrix.rid }}.dmg.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.rid }}
+          path: artifacts/*.dmg*
+
+  release:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Generate update manifest
+        run: |
+          python - <<'PY'
+          import json, glob, os
+          files = sorted(os.path.basename(x) for x in glob.glob('release-assets/*'))
+          json.dump({"version":"${{ github.ref_name }}","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
+          PY
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-assets/*
