@@ -4,5 +4,6 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://AutoEmulatorUpdate.App/Styles/AppStyles.axaml" />
   </Application.Styles>
 </Application>

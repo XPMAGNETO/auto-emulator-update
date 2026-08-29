@@ -1,12 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AutoEmulatorUpdate.App.MainWindow"
-        Title="Auto Emulator Update"
+        Title="Auto Emulator Updater"
         Width="1380" Height="900" MinWidth="1000" MinHeight="680">
-  <Grid RowDefinitions="Auto,*" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+  <Grid RowDefinitions="Auto,*,Auto" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14,18,8">
       <StackPanel>
-        <TextBlock Text="Auto Emulator Update" FontSize="27" FontWeight="Bold"/>
+        <TextBlock Text="Auto Emulator Updater" FontSize="27" FontWeight="Bold"/>
         <TextBlock Text="{Binding PlatformText}" Opacity="0.65"/>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
@@ -146,7 +146,7 @@
           <StackPanel Margin="18" Spacing="14" MaxWidth="800">
             <TextBlock Text="Automatic updates" FontSize="20" FontWeight="SemiBold"/>
             <ComboBox ItemsSource="{Binding MaintenanceModes}" SelectedItem="{Binding MaintenanceMode}"/>
-            <CheckBox Content="Check for Auto Emulator Update app updates automatically" IsChecked="{Binding AutoAppUpdates}"/>
+            <CheckBox Content="Check for Auto Emulator Updater app updates automatically" IsChecked="{Binding AutoAppUpdates}"/>
             <CheckBox Content="Keep running in the background when supported" IsChecked="{Binding BackgroundMode}"/>
 
             <Separator/>
@@ -176,5 +176,13 @@
         </ScrollViewer>
       </TabItem>
     </TabControl>
+
+    <Border Grid.Row="2" Margin="14,0,14,12" Padding="12,10" CornerRadius="8" Background="#10000000">
+      <Grid ColumnDefinitions="*,220,Auto" ColumnSpacing="12">
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="12" VerticalAlignment="Center"/>
+        <Button Grid.Column="2" Content="CANCEL" Command="{Binding CancelCommand}" Padding="12,6"/>
+      </Grid>
+    </Border>
   </Grid>
 </Window>

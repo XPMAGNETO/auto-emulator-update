@@ -5,12 +5,15 @@ RID="${1:-osx-arm64}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PUBLISH="$ROOT/artifacts/$RID"
 VERSION="$(cat "$ROOT/VERSION")"
-APP="$ROOT/artifacts/Auto Emulator Update.app"
+APP="$ROOT/artifacts/Auto Emulator Updater.app"
 DMG="$ROOT/artifacts/AutoEmulatorUpdate-${VERSION}-${RID}.dmg"
 RW_DMG="$ROOT/artifacts/AutoEmulatorUpdate-${RID}.rw.dmg"
 MOUNT="$ROOT/artifacts/dmg-mount-${RID}"
+ICON_SOURCE="$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.png"
+ICONSET="$ROOT/artifacts/AutoEmulatorUpdater.iconset"
+ICNS="$APP/Contents/Resources/AutoEmulatorUpdater.icns"
 
-rm -rf "$APP" "$DMG" "$RW_DMG" "$MOUNT"
+rm -rf "$APP" "$DMG" "$RW_DMG" "$MOUNT" "$ICONSET"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # Move the publish payload instead of copying it to avoid duplicating the
@@ -19,16 +22,31 @@ find "$PUBLISH" -mindepth 1 -maxdepth 1 -exec mv {} "$APP/Contents/MacOS/" \;
 rmdir "$PUBLISH" || true
 chmod +x "$APP/Contents/MacOS/AutoEmulatorUpdate.App"
 
+# Build a native macOS .icns from the repository PNG. Using PNG here avoids
+# relying on sips to decode the Windows .ico container, which is unreliable on
+# hosted macOS runners.
+if [[ -f "$ICON_SOURCE" ]]; then
+  mkdir -p "$ICONSET"
+  for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    double=$((size * 2))
+    sips -z "$double" "$double" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$ICNS"
+  rm -rf "$ICONSET"
+fi
+
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>Auto Emulator Update</string>
-<key>CFBundleDisplayName</key><string>Auto Emulator Update</string>
+<key>CFBundleName</key><string>Auto Emulator Updater</string>
+<key>CFBundleDisplayName</key><string>Auto Emulator Updater</string>
 <key>CFBundleIdentifier</key><string>com.autoemulatorupdate.app</string>
 <key>CFBundleVersion</key><string>${VERSION}</string>
 <key>CFBundleShortVersionString</key><string>${VERSION}</string>
 <key>CFBundleExecutable</key><string>AutoEmulatorUpdate.App</string>
+<key>CFBundleIconFile</key><string>AutoEmulatorUpdater.icns</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 EOF
@@ -48,14 +66,14 @@ if (( IMAGE_MB < 1024 )); then IMAGE_MB=1024; fi
 mkdir -p "$MOUNT"
 # For a blank image, hdiutil create defaults to a writable image; specifying
 # -format without a source folder/device is rejected on newer macOS runners.
-hdiutil create -size "${IMAGE_MB}m" -fs HFS+ -volname "Auto Emulator Update" "$RW_DMG"
+hdiutil create -size "${IMAGE_MB}m" -fs HFS+ -volname "Auto Emulator Updater" "$RW_DMG"
 hdiutil attach "$RW_DMG" -nobrowse -mountpoint "$MOUNT"
 cleanup() {
   hdiutil detach "$MOUNT" >/dev/null 2>&1 || hdiutil detach -force "$MOUNT" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
-ditto "$APP" "$MOUNT/Auto Emulator Update.app"
+ditto "$APP" "$MOUNT/Auto Emulator Updater.app"
 sync
 cd "$ROOT"
 for attempt in 1 2 3; do

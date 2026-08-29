@@ -415,7 +415,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         try
         {
-            var update = await _selfUpdate.CheckAsync();
+            var update = await _selfUpdate.CheckAsync(_cts.Token);
             if (update is null)
             {
                 if (interactive)
@@ -426,34 +426,97 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             }
 
             SettingsStatus = $"Auto Emulator Update {update.Version} is available.";
-            if (interactive && _owner is not null)
+            Append(SettingsStatus);
+
+            if (Queue.Any(q => q.State == QueueState.Running))
             {
-                var box = new Window
-                {
-                    Title = "Application update available",
-                    Width = 520,
-                    Height = 220,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                    Content = new StackPanel
-                    {
-                        Margin = new Avalonia.Thickness(20),
-                        Spacing = 12,
-                        Children =
-                        {
-                            new TextBlock { Text = $"Auto Emulator Update {update.Version} is available.", FontSize = 20, FontWeight = Avalonia.Media.FontWeight.SemiBold },
-                            new TextBlock { Text = "Open the release page to download the correct installer for this computer.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                            new Button { Content = "OPEN UPDATE PAGE", Command = new RelayCommand(() => Process.Start(new ProcessStartInfo(update.ReleaseUrl) { UseShellExecute = true })) }
-                        }
-                    }
-                };
-                await box.ShowDialog(_owner);
+                SettingsStatus = "An application update is available. Finish emulator updates before updating the app.";
+                return;
             }
+
+            if (!interactive)
+            {
+                await DownloadAndStartAppUpdateAsync(update);
+                return;
+            }
+
+            if (_owner is null)
+                return;
+
+            var installRequested = false;
+            var box = new Window
+            {
+                Title = "Application update available",
+                Width = 560,
+                Height = 280,
+                CanResize = false,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            var installButton = new Button { Content = "INSTALL UPDATE", Classes = { "primary" } };
+            var laterButton = new Button { Content = "LATER" };
+            var releaseButton = new Button { Content = "RELEASE NOTES" };
+            installButton.Click += (_, _) => { installRequested = true; box.Close(); };
+            laterButton.Click += (_, _) => box.Close();
+            releaseButton.Click += (_, _) => Process.Start(new ProcessStartInfo(update.ReleaseUrl) { UseShellExecute = true });
+            box.Content = new StackPanel
+            {
+                Margin = new Avalonia.Thickness(24),
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock { Text = $"Auto Emulator Update {update.Version} is ready.", FontSize = 20, FontWeight = Avalonia.Media.FontWeight.SemiBold },
+                    new TextBlock
+                    {
+                        Text = string.IsNullOrWhiteSpace(update.ChecksumUrl)
+                            ? "The correct package for this computer will be downloaded and installed."
+                            : "The correct package for this computer will be downloaded, SHA-256 verified, installed, and the app will restart.",
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        Spacing = 10,
+                        Children = { installButton, laterButton, releaseButton }
+                    }
+                }
+            };
+            await box.ShowDialog(_owner);
+            if (installRequested)
+                await DownloadAndStartAppUpdateAsync(update);
+        }
+        catch (OperationCanceledException)
+        {
+            SettingsStatus = "Application update cancelled.";
+            Progress = 0;
         }
         catch (Exception ex)
         {
-            if (interactive) SettingsStatus = _friendly.Present(ex).Message;
-            Append($"App update check: {ex.Message}");
+            SettingsStatus = _friendly.Present(ex).Message;
+            Append($"App update: {ex}");
         }
+    }
+
+    private async Task DownloadAndStartAppUpdateAsync(AppUpdateInfo update)
+    {
+        ResetCancellation();
+        StatusText = $"Preparing Auto Emulator Update {update.Version}...";
+        SettingsStatus = StatusText;
+        var staged = await _selfUpdate.DownloadAndVerifyAsync(update,
+            new Progress<(double percent, string message)>(x =>
+            {
+                Progress = x.percent;
+                StatusText = x.message;
+                SettingsStatus = x.message;
+            }), _cts.Token);
+
+        SettingsStatus = staged.ChecksumVerified
+            ? "Update verified. Starting the installer..."
+            : "Update downloaded. Starting the installer...";
+        StatusText = SettingsStatus;
+        Append(SettingsStatus);
+        _selfUpdate.StartInstaller(staged);
+        Progress = 100;
+        _owner?.Close();
     }
 
     private async Task ApplyScheduleAsync()
