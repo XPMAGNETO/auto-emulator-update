@@ -21,6 +21,8 @@ public sealed class InstallService(
         }
         if (OperatingSystem.IsMacOS())
             return Path.Combine(home, "Applications", "Emulators");
+        if (platform.IsBatocera)
+            return "/userdata/system/auto-emulator-update/emulators";
         return Path.Combine(home, "Emulators");
     }
 
@@ -78,9 +80,11 @@ public sealed class InstallService(
             ExecutablePath = exe,
             CurrentVersion = release.Version,
             LatestVersion = release.Version,
-            DetectionMethod = "Installed by Auto Emulator Update",
+            DetectionMethod = platform.IsBatocera
+                ? "Installed in Batocera userdata by Auto Emulator Update"
+                : "Installed by Auto Emulator Update",
             Confidence = "High",
-            FrontendOwner = "Auto Emulator Update",
+            FrontendOwner = platform.IsBatocera ? "Standalone on Batocera" : "Auto Emulator Update",
             Status = "Up to date",
             SourceHealth = SourceHealthState.Healthy,
             SourceName = release.Source
