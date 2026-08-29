@@ -37,7 +37,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts/release | Out-Null
           Copy-Item packaging/windows/Output/AutoEmulatorUpdate-Setup.exe "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Windows-Setup.exe"
           (Get-FileHash "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Windows-Setup.exe" -Algorithm SHA256).Hash.ToLower() + "  AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Windows-Setup.exe" | Set-Content "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Windows-Setup.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: artifacts/release/*
@@ -69,7 +69,7 @@ jobs:
           for f in artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-*.AppImage; do sha256sum "$f" > "$f.sha256"; done
       - name: Build DEB
         run: packaging/linux/build-deb.sh linux-x64 || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-packages
           path: |
@@ -103,7 +103,7 @@ jobs:
           packaging/macos/build-dmg.sh ${{ matrix.rid }}
           mv artifacts/AutoEmulatorUpdate-*-${{ matrix.rid }}.dmg "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-${{ matrix.rid }}.dmg"
           shasum -a 256 "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-${{ matrix.rid }}.dmg" > "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-${{ matrix.rid }}.dmg.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.rid }}
           path: artifacts/*.dmg*
