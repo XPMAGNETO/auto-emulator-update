@@ -57,58 +57,91 @@ public sealed class PlatformService
     public IEnumerable<string> DefaultSearchRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var roots = new List<string>();
+
         if (OperatingSystem.IsWindows())
         {
-            foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady &&
-                         (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
-                yield return drive.RootDirectory.FullName;
+            roots.AddRange(DriveInfo.GetDrives()
+                .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable))
+                .Select(d => d.RootDirectory.FullName));
 
-            foreach (var path in new[]
+            roots.AddRange(new[]
             {
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 Path.Combine(home, "Downloads"),
                 Path.Combine(home, "Documents"),
                 Path.Combine(home, "Emulators"),
                 Path.Combine(home, "Games")
-            }.Where(p => !string.IsNullOrWhiteSpace(p)))
-                yield return path;
+            });
         }
         else if (OperatingSystem.IsMacOS())
         {
-            yield return "/Applications";
-            yield return Path.Combine(home, "Applications");
-            yield return Path.Combine(home, "Emulators");
+            roots.AddRange(new[]
+            {
+                "/Applications",
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Emulators"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, "Library", "Application Support"),
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+                "/opt",
+                "/Volumes"
+            });
         }
         else if (IsBatocera)
         {
-            yield return "/userdata/system/auto-emulator-update/emulators";
-            yield return "/userdata/system/emulators";
-            yield return "/userdata/system/apps";
-            yield return "/userdata/system/configs";
-            yield return "/userdata/saves/flatpak";
+            // Batocera owns its bundled emulator stack. Keep update discovery limited
+            // to writable/user-managed locations so system binaries are never replaced.
+            roots.AddRange(new[]
+            {
+                "/userdata/system/auto-emulator-update/emulators",
+                "/userdata/system/emulators",
+                "/userdata/system/apps",
+                "/userdata/system/configs",
+                "/userdata/saves/flatpak",
+                "/userdata/roms"
+            });
         }
         else
         {
-            yield return Path.Combine(home, "Applications");
-            yield return Path.Combine(home, "Emulators");
-            yield return Path.Combine(home, ".local", "bin");
-            yield return Path.Combine(home, ".local", "share", "flatpak", "exports", "bin");
-            yield return "/var/lib/flatpak/exports/bin";
+            roots.AddRange(new[]
+            {
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Emulators"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, ".local", "bin"),
+                Path.Combine(home, ".local", "share", "flatpak", "exports", "bin"),
+                Path.Combine(home, ".var", "app"),
+                "/usr/local/bin",
+                "/usr/bin",
+                "/var/lib/flatpak/exports/bin",
+                "/opt",
+                "/mnt",
+                "/media",
+                "/run/media"
+            });
 
             if (IsSteamOS)
             {
-                yield return Path.Combine(home, ".var", "app");
-                yield return "/run/media";
-                yield return "/run/media/deck";
-            }
-            else
-            {
-                yield return "/opt";
+                roots.Add(Path.Combine(home, ".steam"));
+                roots.Add(Path.Combine(home, ".local", "share", "Steam"));
+                roots.Add("/run/media/deck");
             }
         }
+
+        foreach (var root in roots
+                     .Where(p => !string.IsNullOrWhiteSpace(p))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+            yield return root;
     }
 
     public bool IsExecutablePath(string path)
