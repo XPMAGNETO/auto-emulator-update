@@ -16,7 +16,37 @@ public sealed class BackupService(AppPaths paths)
     public async Task RollbackAsync(InstalledEmulator emulator, BackupRecord backup, IProgress<string>? progress = null, CancellationToken ct = default)
     {
         if (!Directory.Exists(backup.Path)) throw new DirectoryNotFoundException(backup.Path);
-        await CopyTreeAsync(backup.Path, emulator.InstallPath, progress, ct);
+
+        var installPath = Path.GetFullPath(emulator.InstallPath);
+        var parent = Directory.GetParent(installPath)?.FullName
+                     ?? throw new InvalidOperationException("The emulator install folder has no parent directory.");
+        var candidate = Path.Combine(parent, $".aeu-{emulator.Definition.Id}-{Guid.NewGuid():N}-restore");
+        var previous = Path.Combine(parent, $".aeu-{emulator.Definition.Id}-{Guid.NewGuid():N}-failed");
+
+        try
+        {
+            await CopyTreeAsync(backup.Path, candidate, progress, ct);
+            var hadExisting = Directory.Exists(installPath);
+            if (hadExisting) Directory.Move(installPath, previous);
+
+            try
+            {
+                Directory.Move(candidate, installPath);
+            }
+            catch
+            {
+                if (hadExisting && Directory.Exists(previous) && !Directory.Exists(installPath))
+                    Directory.Move(previous, installPath);
+                throw;
+            }
+
+            TryDelete(previous);
+        }
+        catch
+        {
+            TryDelete(candidate);
+            throw;
+        }
     }
 
     public IEnumerable<BackupRecord> List(string emulatorId, string emulatorName)
@@ -78,5 +108,10 @@ public sealed class BackupService(AppPaths paths)
         long total = 0;
         try { foreach (var f in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)) total += new FileInfo(f).Length; } catch { }
         return total;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { }
     }
 }
