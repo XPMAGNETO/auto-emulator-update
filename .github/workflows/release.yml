@@ -5,13 +5,13 @@ on:
     tags:
       - 'v*'
     branches:
-      - 'release-v10.1.0-alpha.3'
+      - 'release-v10.1.0-alpha.4'
 
 permissions:
   contents: write
 
 env:
-  RELEASE_VERSION: v10.1.0-alpha.3
+  RELEASE_VERSION: v10.1.0-alpha.4
 
 jobs:
   windows:
@@ -121,12 +121,12 @@ jobs:
           python - <<'PY'
           import json, glob, os
           files = sorted(os.path.basename(x) for x in glob.glob('release-assets/*'))
-          json.dump({"version":"v10.1.0-alpha.3","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
+          json.dump({"version":"v10.1.0-alpha.4","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
           PY
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v10.1.0-alpha.3
-          name: Auto Emulator Update v10.1.0-alpha.3
+          tag_name: v10.1.0-alpha.4
+          name: Auto Emulator Update v10.1.0-alpha.4
           prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
