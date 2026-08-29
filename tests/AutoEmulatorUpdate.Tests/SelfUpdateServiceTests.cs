@@ -12,6 +12,7 @@ public sealed class SelfUpdateServiceTests
     {
         var payload = Encoding.UTF8.GetBytes("auto-emulator-updater-package");
         var expected = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
+        var version = $"99.9.0-test-{Guid.NewGuid():N}";
         var handler = new StubHandler(request =>
         {
             var body = request.RequestUri!.AbsolutePath.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase)
@@ -21,23 +22,21 @@ public sealed class SelfUpdateServiceTests
         });
         using var http = new HttpClient(handler);
         var service = new SelfUpdateService(http);
-        var temp = Path.Combine(Path.GetTempPath(), $"aeu-selfupdate-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(temp);
+
+        var result = await service.DownloadAndVerifyAsync(
+            new AppUpdateInfo(version, "https://example.test/package.exe", "package.exe", "https://example.test/release", "https://example.test/package.exe.sha256", "package.exe.sha256"),
+            null,
+            CancellationToken.None);
 
         try
         {
-            var result = await service.DownloadAndVerifyAsync(
-                new SelfUpdateInfo("10.1.0-alpha.6", "https://example.test/package.exe", "https://example.test/package.exe.sha256", "package.exe"),
-                temp,
-                null,
-                CancellationToken.None);
-
             Assert.True(result.ChecksumVerified);
-            Assert.Equal(payload, await File.ReadAllBytesAsync(result.PackagePath));
+            Assert.Equal(payload, await File.ReadAllBytesAsync(result.FilePath));
         }
         finally
         {
-            Directory.Delete(temp, true);
+            var directory = Path.GetDirectoryName(result.FilePath);
+            if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }
 
@@ -45,6 +44,7 @@ public sealed class SelfUpdateServiceTests
     public async Task DownloadAndVerifyAsync_RejectsMismatchedSha256()
     {
         var payload = Encoding.UTF8.GetBytes("tampered-package");
+        var version = $"99.9.0-test-{Guid.NewGuid():N}";
         var handler = new StubHandler(request =>
         {
             var body = request.RequestUri!.AbsolutePath.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase)
@@ -54,20 +54,18 @@ public sealed class SelfUpdateServiceTests
         });
         using var http = new HttpClient(handler);
         var service = new SelfUpdateService(http);
-        var temp = Path.Combine(Path.GetTempPath(), $"aeu-selfupdate-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(temp);
+        var directory = Path.Combine(Path.GetTempPath(), "AutoEmulatorUpdate", "updates", version);
 
         try
         {
             await Assert.ThrowsAsync<InvalidDataException>(() => service.DownloadAndVerifyAsync(
-                new SelfUpdateInfo("10.1.0-alpha.6", "https://example.test/package.exe", "https://example.test/package.exe.sha256", "package.exe"),
-                temp,
+                new AppUpdateInfo(version, "https://example.test/package.exe", "package.exe", "https://example.test/release", "https://example.test/package.exe.sha256", "package.exe.sha256"),
                 null,
                 CancellationToken.None));
         }
         finally
         {
-            Directory.Delete(temp, true);
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }
 
