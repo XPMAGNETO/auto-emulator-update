@@ -1,0 +1,2 @@
+Auto Emulator Update v10.1.0-alpha.3 release trigger.
+Includes Windows first-run startup fix, package startup validation, transactional emulator updates, automatic rollback, protected save/config preservation, diagnostics/reporting improvements, and current Linux/macOS platform support.
