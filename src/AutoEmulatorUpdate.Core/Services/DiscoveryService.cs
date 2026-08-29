@@ -7,7 +7,8 @@ public sealed class DiscoveryService(PlatformService platform, VersionService ve
 {
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Windows", "WinSxS", "System Volume Information", "$Recycle.Bin", ".git", "node_modules", ".cache"
+        "Windows", "WinSxS", "System Volume Information", "$Recycle.Bin", "Recovery",
+        ".git", "node_modules", ".cache", "Caches"
     };
 
     public async Task<List<InstalledEmulator>> ScanAsync(
@@ -28,8 +29,14 @@ public sealed class DiscoveryService(PlatformService platform, VersionService ve
 
         var found = new Dictionary<string, InstalledEmulator>(StringComparer.OrdinalIgnoreCase);
         var queue = new Queue<(string path, int depth)>();
-        foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase).Where(Directory.Exists))
-            queue.Enqueue((root, 0));
+        var queued = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in roots.Where(Directory.Exists))
+        {
+            string full;
+            try { full = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+            catch { continue; }
+            if (queued.Add(full)) queue.Enqueue((full, 0));
+        }
 
         int visited = 0;
         while (queue.Count > 0)
@@ -71,8 +78,12 @@ public sealed class DiscoveryService(PlatformService platform, VersionService ve
                 {
                     foreach (var child in Directory.EnumerateDirectories(dir))
                     {
-                        if (!Skip.Contains(Path.GetFileName(child)))
-                            queue.Enqueue((child, depth + 1));
+                        var name = Path.GetFileName(child);
+                        if (Skip.Contains(name)) continue;
+                        string full;
+                        try { full = Path.GetFullPath(child).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+                        catch { continue; }
+                        if (queued.Add(full)) queue.Enqueue((full, depth + 1));
                     }
                 }
             }
