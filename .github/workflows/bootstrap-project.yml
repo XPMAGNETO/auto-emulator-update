@@ -53,9 +53,11 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .bootstrap -exec rm -rf {} +
           cp -a "$project_root"/. ./
           sed -i 's#OWNER/auto-emulator-update#xpm69420/auto-emulator-update#g' src/AutoEmulatorUpdate.Core/BuildInfo.cs
-          sed -i 's#actions/checkout@v4#actions/checkout@v5#g' .github/workflows/*.yml
+          # The Actions token cannot modify workflow files. Keep the current
+          # bootstrap workflow unchanged; ChatGPT will install CI/release
+          # workflows directly after this source import succeeds.
+          git checkout HEAD -- .github/workflows
           rm -rf .bootstrap
-          rm -f .github/workflows/bootstrap-project.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
