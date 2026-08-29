@@ -1,0 +1,52 @@
+{
+  "Id": "shadps4",
+  "Name": "ShadPS4",
+  "Aliases": [
+    "ShadPS4",
+    "shadPS4",
+    "shadPS4 Launcher",
+    "shadPS4QtLauncher",
+    "shadps4"
+  ],
+  "Executables": {
+    "windows": [
+      "shadPS4.exe",
+      "shadps4.exe",
+      "shadPS4-qtlauncher.exe",
+      "shadps4-qtlauncher.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "shadps4-win64-qt-*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "shadps4-emu/shadPS4"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

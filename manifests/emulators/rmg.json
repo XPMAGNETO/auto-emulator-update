@@ -1,0 +1,47 @@
+{
+  "Id": "rmg",
+  "Name": "RMG",
+  "Aliases": [
+    "RMG",
+    "Rosalie's Mupen GUI",
+    "Rosalies Mupen GUI"
+  ],
+  "Executables": {
+    "windows": [
+      "RMG.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "RMG-Portable-Windows64-*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "Rosalie241/RMG"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,54 @@
+{
+  "Id": "ppsspp",
+  "Name": "PPSSPP",
+  "Aliases": [
+    "PPSSPP",
+    "PPSSPP Gold"
+  ],
+  "Executables": {
+    "windows": [
+      "PPSSPPWindows64.exe",
+      "PPSSPPWindows.exe"
+    ],
+    "linux": [
+      "PPSSPPSDL",
+      "PPSSPPQt"
+    ],
+    "macos": [
+      "PPSSPP"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "PPSSPP-*-Windows-x64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "hrydgard/ppsspp"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

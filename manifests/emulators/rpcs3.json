@@ -1,0 +1,51 @@
+{
+  "Id": "rpcs3",
+  "Name": "RPCS3",
+  "Aliases": [
+    "RPCS3"
+  ],
+  "Executables": {
+    "windows": [
+      "rpcs3.exe"
+    ],
+    "linux": [
+      "rpcs3"
+    ],
+    "macos": [
+      "RPCS3"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*win64.7z*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "RPCS3/rpcs3-binaries-win"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

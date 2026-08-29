@@ -1,0 +1,179 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AutoEmulatorUpdate.App.MainWindow"
+        Title="Auto Emulator Update"
+        Width="1380" Height="900" MinWidth="1000" MinHeight="680">
+  <Grid RowDefinitions="Auto,*" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14,18,8">
+      <StackPanel>
+        <TextBlock Text="Auto Emulator Update" FontSize="27" FontWeight="Bold"/>
+        <TextBlock Text="{Binding PlatformText}" Opacity="0.65"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <Button Content="CHECK FOR UPDATES" Command="{Binding CheckCommand}" Padding="18,10"/>
+        <Button Content="UPDATE ALL" Command="{Binding UpdateAllCommand}" Padding="18,10"/>
+      </StackPanel>
+    </Grid>
+
+    <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedMainTab}" Margin="14">
+      <TabItem Header="Home">
+        <ScrollViewer>
+          <StackPanel Margin="16" Spacing="16">
+            <WrapPanel>
+              <Border Padding="18" Margin="0,0,12,12" CornerRadius="10" Background="#140078D4" Width="250">
+                <StackPanel>
+                  <TextBlock Text="Emulators found" Opacity="0.7"/>
+                  <TextBlock Text="{Binding InstalledCount}" FontSize="34" FontWeight="Bold"/>
+                </StackPanel>
+              </Border>
+              <Border Padding="18" Margin="0,0,12,12" CornerRadius="10" Background="#14F59E0B" Width="250">
+                <StackPanel>
+                  <TextBlock Text="Updates available" Opacity="0.7"/>
+                  <TextBlock Text="{Binding UpdatesAvailableCount}" FontSize="34" FontWeight="Bold"/>
+                </StackPanel>
+              </Border>
+              <Border Padding="18" Margin="0,0,12,12" CornerRadius="10" Background="#1422C55E" Width="250">
+                <StackPanel>
+                  <TextBlock Text="Last check" Opacity="0.7"/>
+                  <TextBlock Text="{Binding LastCheckText}" FontSize="20" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Border>
+            </WrapPanel>
+
+            <Border Padding="18" CornerRadius="10" Background="#10000000">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Recommended action" FontSize="20" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding HomeSummary}" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Content="UPDATE ALL" Command="{Binding UpdateAllCommand}" Padding="24,12"/>
+                  <Button Content="SCAN MY SYSTEM" Command="{Binding ScanCommand}" Padding="20,12"/>
+                  <Button Content="IMPORT FRONTENDS" Command="{Binding ImportFrontendsCommand}" Padding="20,12"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Text="Recent activity" FontSize="20" FontWeight="SemiBold"/>
+            <DataGrid ItemsSource="{Binding RecentHistory}" AutoGenerateColumns="True" IsReadOnly="True" Height="260"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Emulators">
+        <TabControl Margin="8">
+          <TabItem Header="{Binding InstalledHeader}">
+            <Grid RowDefinitions="Auto,*">
+              <WrapPanel Grid.Row="0" Margin="8">
+                <Button Content="UPDATE SELECTED" Command="{Binding UpdateSelectedCommand}" Margin="0,0,8,8"/>
+                <Button Content="CHECK SELECTED" Command="{Binding CheckSelectedCommand}" Margin="0,0,8,8"/>
+              </WrapPanel>
+              <DataGrid Grid.Row="1" ItemsSource="{Binding Installed}" AutoGenerateColumns="False">
+                <DataGrid.Columns>
+                  <DataGridCheckBoxColumn Header="✓" Binding="{Binding Selected}" Width="45"/>
+                  <DataGridTextColumn Header="Emulator" Binding="{Binding Definition.Name}" Width="170"/>
+                  <DataGridTextColumn Header="Current" Binding="{Binding CurrentVersion}" Width="120"/>
+                  <DataGridTextColumn Header="Latest" Binding="{Binding LatestVersion}" Width="120"/>
+                  <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150"/>
+                  <DataGridTextColumn Header="Frontend" Binding="{Binding FrontendOwner}" Width="140"/>
+                  <DataGridTextColumn Header="Folder" Binding="{Binding InstallPath}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Grid>
+          </TabItem>
+
+          <TabItem Header="{Binding NotInstalledHeader}">
+            <Grid RowDefinitions="Auto,*">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="8">
+                <TextBox Watermark="Search emulator library..." Text="{Binding LibrarySearch}" Margin="0,0,8,0"/>
+                <Button Grid.Column="1" Content="INSTALL SELECTED" Command="{Binding InstallSelectedCommand}"/>
+              </Grid>
+              <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredNotInstalled}" AutoGenerateColumns="False">
+                <DataGrid.Columns>
+                  <DataGridCheckBoxColumn Header="✓" Binding="{Binding Selected}" Width="45"/>
+                  <DataGridTextColumn Header="Emulator" Binding="{Binding Definition.Name}" Width="220"/>
+                  <DataGridTextColumn Header="Systems / aliases" Binding="{Binding AliasesText}" Width="*"/>
+                  <DataGridTextColumn Header="Platform" Binding="{Binding PlatformSupport}" Width="200"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Grid>
+          </TabItem>
+        </TabControl>
+      </TabItem>
+
+      <TabItem Header="Updates">
+        <Grid RowDefinitions="Auto,*">
+          <WrapPanel Margin="8">
+            <Button Content="RUN QUEUE" Command="{Binding RunQueueCommand}" Margin="0,0,8,8"/>
+            <Button Content="PAUSE / RESUME" Command="{Binding PauseQueueCommand}" Margin="0,0,8,8"/>
+            <Button Content="CANCEL" Command="{Binding CancelCommand}" Margin="0,0,8,8"/>
+            <Button Content="CLEAR COMPLETED" Command="{Binding ClearCompletedCommand}" Margin="0,0,8,8"/>
+          </WrapPanel>
+          <TabControl Grid.Row="1">
+            <TabItem Header="Queue">
+              <DataGrid ItemsSource="{Binding Queue}" AutoGenerateColumns="False" IsReadOnly="True">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Emulator" Binding="{Binding Emulator.Definition.Name}" Width="180"/>
+                  <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="110"/>
+                  <DataGridTextColumn Header="State" Binding="{Binding State}" Width="120"/>
+                  <DataGridTextColumn Header="Progress" Binding="{Binding Progress}" Width="100"/>
+                  <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </TabItem>
+            <TabItem Header="History">
+              <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="True" IsReadOnly="True"/>
+            </TabItem>
+            <TabItem Header="Needs attention">
+              <DataGrid ItemsSource="{Binding Failures}" AutoGenerateColumns="True" IsReadOnly="True"/>
+            </TabItem>
+          </TabControl>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Backups">
+        <Grid RowDefinitions="Auto,*">
+          <WrapPanel Margin="8">
+            <Button Content="REFRESH" Command="{Binding RefreshBackupsCommand}" Margin="0,0,8,8"/>
+            <Button Content="RESTORE SELECTED" Command="{Binding RestoreBackupCommand}" Margin="0,0,8,8"/>
+            <Button Content="CLEAN OLD BACKUPS" Command="{Binding CleanupBackupsCommand}" Margin="0,0,8,8"/>
+          </WrapPanel>
+          <DataGrid Grid.Row="1" ItemsSource="{Binding Backups}" AutoGenerateColumns="True" IsReadOnly="True"
+                    SelectedItem="{Binding SelectedBackup}"/>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Settings">
+        <ScrollViewer>
+          <StackPanel Margin="18" Spacing="14" MaxWidth="800">
+            <TextBlock Text="Automatic updates" FontSize="20" FontWeight="SemiBold"/>
+            <ComboBox ItemsSource="{Binding MaintenanceModes}" SelectedItem="{Binding MaintenanceMode}"/>
+            <CheckBox Content="Check for Auto Emulator Update app updates automatically" IsChecked="{Binding AutoAppUpdates}"/>
+            <CheckBox Content="Keep running in the background when supported" IsChecked="{Binding BackgroundMode}"/>
+
+            <Separator/>
+            <TextBlock Text="Startup" FontSize="20" FontWeight="SemiBold"/>
+            <ComboBox ItemsSource="{Binding StartupBehaviors}" SelectedItem="{Binding StartupBehavior}"/>
+
+            <Separator/>
+            <TextBlock Text="Scheduled maintenance" FontSize="20" FontWeight="SemiBold"/>
+            <CheckBox Content="Enable scheduled maintenance" IsChecked="{Binding ScheduleEnabled}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Time:" VerticalAlignment="Center"/>
+              <TextBox Text="{Binding ScheduleTime}" Width="100"/>
+              <Button Content="APPLY SCHEDULE" Command="{Binding ApplyScheduleCommand}"/>
+            </StackPanel>
+
+            <Separator/>
+            <TextBlock Text="Support" FontSize="20" FontWeight="SemiBold"/>
+            <WrapPanel>
+              <Button Content="CHECK APP UPDATE" Command="{Binding CheckAppUpdateCommand}" Margin="0,0,8,8"/>
+              <Button Content="CREATE DIAGNOSTIC ZIP" Command="{Binding DiagnosticCommand}" Margin="0,0,8,8"/>
+              <Button Content="ADVANCED / DEVELOPER TOOLS" Command="{Binding AdvancedCommand}" Margin="0,0,8,8"/>
+            </WrapPanel>
+
+            <TextBlock Text="{Binding SettingsStatus}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</Window>

@@ -1,0 +1,61 @@
+{
+  "Id": "dolphin",
+  "Name": "Dolphin",
+  "Aliases": [
+    "Dolphin",
+    "Dolphin Emulator"
+  ],
+  "Executables": {
+    "windows": [
+      "Dolphin.exe",
+      "DolphinQt2.exe"
+    ],
+    "linux": [
+      "dolphin-emu",
+      "dolphin"
+    ],
+    "macos": [
+      "Dolphin"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "dolphin-*-x64.7z",
+      "DirectUrlTemplate": "https://dl.dolphin-emu.org/releases/{version}/dolphin-{version}-x64.7z",
+      "ArchiveType": "7z"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github-tags",
+      "Repository": "dolphin-emu/dolphin"
+    },
+    {
+      "Kind": "html-regex",
+      "Url": "https://dolphin-emu.org/download/",
+      "VersionRegex": "(?<version>\\d{4}[a-z]?)"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,53 @@
+{
+  "Id": "dosbox-staging",
+  "Name": "DOSBox Staging",
+  "Aliases": [
+    "DOSBox Staging",
+    "DOSBox-Staging"
+  ],
+  "Executables": {
+    "windows": [
+      "dosbox.exe",
+      "dosbox-staging.exe"
+    ],
+    "linux": [
+      "dosbox"
+    ],
+    "macos": [
+      "dosbox"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "dosbox-staging-windows-x64-*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "dosbox-staging/dosbox-staging"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,46 @@
+{
+  "Id": "xemu",
+  "Name": "Xemu",
+  "Aliases": [
+    "Xemu",
+    "xemu"
+  ],
+  "Executables": {
+    "windows": [
+      "xemu.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*windows-x86_64.zip*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "xemu-project/xemu"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

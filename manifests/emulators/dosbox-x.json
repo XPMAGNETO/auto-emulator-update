@@ -1,0 +1,52 @@
+{
+  "Id": "dosbox-x",
+  "Name": "DOSBox-X",
+  "Aliases": [
+    "DOSBox-X",
+    "DOSBox X"
+  ],
+  "Executables": {
+    "windows": [
+      "dosbox-x.exe"
+    ],
+    "linux": [
+      "dosbox-x"
+    ],
+    "macos": [
+      "dosbox-x"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "dosbox-x-mingw64-*-portable.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "joncampbell123/dosbox-x"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

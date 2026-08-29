@@ -1,0 +1,46 @@
+{
+  "Id": "eden",
+  "Name": "Eden",
+  "Aliases": [
+    "Eden"
+  ],
+  "Executables": {
+    "windows": [
+      "eden.exe",
+      "Eden.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "Eden-Windows-*-amd64-clang-pgo.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "eden-emu/eden"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,46 @@
+{
+  "Id": "fceux",
+  "Name": "FCEUX",
+  "Aliases": [
+    "FCEUX"
+  ],
+  "Executables": {
+    "windows": [
+      "fceux.exe",
+      "fceux64.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "fceux-*-win64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "TASEmulators/fceux"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

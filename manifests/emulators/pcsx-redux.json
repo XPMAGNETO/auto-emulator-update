@@ -1,0 +1,46 @@
+{
+  "Id": "pcsx-redux",
+  "Name": "PCSX-Redux",
+  "Aliases": [
+    "PCSX-Redux",
+    "PCSX Redux"
+  ],
+  "Executables": {
+    "windows": [
+      "pcsx-redux.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "pcsx-redux-*-Windows-x64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "grumpycoders/pcsx-redux"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

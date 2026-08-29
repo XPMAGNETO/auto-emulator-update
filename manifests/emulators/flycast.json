@@ -1,0 +1,51 @@
+{
+  "Id": "flycast",
+  "Name": "Flycast",
+  "Aliases": [
+    "Flycast"
+  ],
+  "Executables": {
+    "windows": [
+      "flycast.exe"
+    ],
+    "linux": [
+      "flycast"
+    ],
+    "macos": [
+      "flycast"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "flycast-win64-*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "flyinghead/flycast"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

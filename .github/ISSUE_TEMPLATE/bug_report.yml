@@ -1,0 +1,21 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug] "
+body:
+  - type: input
+    id: version
+    attributes: { label: Version }
+    validations: { required: true }
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, Linux, macOS]
+    validations: { required: true }
+  - type: textarea
+    id: problem
+    attributes: { label: What happened? }
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes: { label: Relevant logs }

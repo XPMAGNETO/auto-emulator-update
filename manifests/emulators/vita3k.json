@@ -1,0 +1,52 @@
+{
+  "Id": "vita3k",
+  "Name": "Vita3K",
+  "Aliases": [
+    "Vita3K",
+    "Vita 3K"
+  ],
+  "Executables": {
+    "windows": [
+      "Vita3K.exe"
+    ],
+    "linux": [
+      "Vita3K"
+    ],
+    "macos": [
+      "Vita3K"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*windows-latest.zip*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "Vita3K/Vita3K"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

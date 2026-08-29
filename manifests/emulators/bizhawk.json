@@ -1,0 +1,46 @@
+{
+  "Id": "bizhawk",
+  "Name": "BizHawk",
+  "Aliases": [
+    "BizHawk",
+    "EmuHawk"
+  ],
+  "Executables": {
+    "windows": [
+      "EmuHawk.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "BizHawk-*-win-x64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "TASEmulators/BizHawk"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

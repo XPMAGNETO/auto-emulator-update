@@ -1,0 +1,53 @@
+{
+  "Id": "snes9x",
+  "Name": "Snes9x",
+  "Aliases": [
+    "Snes9x",
+    "SNES9x"
+  ],
+  "Executables": {
+    "windows": [
+      "snes9x-x64.exe",
+      "snes9x.exe"
+    ],
+    "linux": [
+      "snes9x"
+    ],
+    "macos": [
+      "snes9x"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "snes9x-*-win32-x64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "snes9xgit/snes9x"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,52 @@
+{
+  "Id": "ares",
+  "Name": "ares",
+  "Aliases": [
+    "ares",
+    "Ares"
+  ],
+  "Executables": {
+    "windows": [
+      "ares.exe"
+    ],
+    "linux": [
+      "ares"
+    ],
+    "macos": [
+      "ares"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*ares-windows-x64.zip*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "ares-emulator/ares"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

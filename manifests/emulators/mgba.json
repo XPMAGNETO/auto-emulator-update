@@ -1,0 +1,53 @@
+{
+  "Id": "mgba",
+  "Name": "mGBA",
+  "Aliases": [
+    "mGBA",
+    "MGBA"
+  ],
+  "Executables": {
+    "windows": [
+      "mGBA.exe"
+    ],
+    "linux": [
+      "mgba-qt",
+      "mgba"
+    ],
+    "macos": [
+      "mGBA"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "mGBA-*-win64.7z"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "mgba-emu/mgba"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

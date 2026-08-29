@@ -1,0 +1,46 @@
+{
+  "Id": "retroarch",
+  "Name": "RetroArch",
+  "Aliases": [
+    "RetroArch"
+  ],
+  "Executables": {
+    "windows": [
+      "retroarch.exe"
+    ],
+    "linux": [
+      "retroarch"
+    ],
+    "macos": [
+      "RetroArch"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*RetroArch.7z*"
+    }
+  ],
+  "Sources": [],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

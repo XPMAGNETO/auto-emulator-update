@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AutoEmulatorUpdate.App.FirstRunWindow"
+        Width="760" Height="560"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Title="Welcome to Auto Emulator Update">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="28">
+    <StackPanel Grid.Row="0">
+      <TextBlock Text="Auto Emulator Update" FontSize="30" FontWeight="Bold"/>
+      <TextBlock Text="Easy setup" FontSize="16" Opacity="0.7"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Margin="0,24,0,18">
+      <StackPanel IsVisible="{Binding IsWelcomePage}" Spacing="14">
+        <TextBlock Text="Welcome" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Auto Emulator Update can find your installed emulators, back them up before updates, verify new versions, and automatically restore the previous version if an update fails."/>
+        <Border Padding="16" CornerRadius="10" Background="#14000000">
+          <StackPanel>
+            <TextBlock Text="Recommended setup" FontWeight="Bold"/>
+            <TextBlock Text="• Find emulator installations automatically"/>
+            <TextBlock Text="• Backup, update and verify safely"/>
+            <TextBlock Text="• Use Stable emulator releases"/>
+            <TextBlock Text="• Keep technical options hidden unless needed"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsScanPage}" Spacing="14">
+        <TextBlock Text="Find your emulators" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock TextWrapping="Wrap"
+                   Text="We'll check common emulator folders and supported frontend configurations. ROMs, saves, BIOS files and keys are not uploaded or sent anywhere."/>
+        <Button Content="SCAN NOW" Command="{Binding ScanCommand}" Width="180" HorizontalAlignment="Left"/>
+        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ScanProgress}" Height="16"/>
+        <TextBlock Text="{Binding ScanStatus}" TextWrapping="Wrap"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsUpdatePage}" Spacing="14">
+        <TextBlock Text="How should updates work?" FontSize="24" FontWeight="SemiBold"/>
+        <RadioButton Content="Recommended — Backup, update and verify automatically"
+                     IsChecked="{Binding RecommendedMode}"/>
+        <RadioButton Content="Ask me before installing updates"
+                     IsChecked="{Binding AskMode}"/>
+        <RadioButton Content="Check only — never install automatically"
+                     IsChecked="{Binding CheckOnlyMode}"/>
+        <CheckBox Content="Automatically check for Auto Emulator Update app updates"
+                  IsChecked="{Binding AutoAppUpdates}"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsSchedulePage}" Spacing="14">
+        <TextBlock Text="Automatic maintenance" FontSize="24" FontWeight="SemiBold"/>
+        <RadioButton Content="Check when Auto Emulator Update opens"
+                     IsChecked="{Binding CheckOnLaunch}"/>
+        <RadioButton Content="Manual only"
+                     IsChecked="{Binding ManualOnly}"/>
+        <CheckBox Content="Also run on a schedule"
+                  IsChecked="{Binding ScheduleEnabled}"/>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="Time:" VerticalAlignment="Center"/>
+          <TextBox Text="{Binding ScheduleTime}" Width="90"/>
+          <TextBlock Text="Example: 09:00" Opacity="0.65" VerticalAlignment="Center"/>
+        </StackPanel>
+        <CheckBox Content="Keep the app available in the background when supported"
+                  IsChecked="{Binding BackgroundMode}"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsFinishPage}" Spacing="14">
+        <TextBlock Text="You're ready" FontSize="24" FontWeight="SemiBold"/>
+        <TextBlock TextWrapping="Wrap"
+                   Text="The normal dashboard keeps things simple. Advanced health, resolver, manifest and diagnostic tools are available from Settings → Advanced."/>
+        <Border Padding="16" CornerRadius="10" Background="#14000000">
+          <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap"/>
+        </Border>
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto">
+      <Button Content="Back" Command="{Binding BackCommand}" IsEnabled="{Binding CanGoBack}" Width="100"/>
+      <Button Grid.Column="2" Content="Skip setup" Command="{Binding SkipCommand}" Width="110" Margin="0,0,8,0"/>
+      <Button Grid.Column="3" Content="{Binding NextText}" Command="{Binding NextCommand}" Width="130"/>
+    </Grid>
+  </Grid>
+</Window>

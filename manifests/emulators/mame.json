@@ -1,0 +1,54 @@
+{
+  "Id": "mame",
+  "Name": "MAME",
+  "Aliases": [
+    "MAME",
+    "MAME64",
+    "MAME Emulator"
+  ],
+  "Executables": {
+    "windows": [
+      "mame.exe",
+      "mame64.exe"
+    ],
+    "linux": [
+      "mame"
+    ],
+    "macos": [
+      "mame"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "mame*b_x64.exe"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "mamedev/mame"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

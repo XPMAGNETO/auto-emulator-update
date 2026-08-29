@@ -1,0 +1,47 @@
+{
+  "Id": "mesen",
+  "Name": "Mesen",
+  "Aliases": [
+    "Mesen",
+    "Mesen 2",
+    "Mesen2"
+  ],
+  "Executables": {
+    "windows": [
+      "Mesen.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "Mesen.*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "SourMesen/Mesen2"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

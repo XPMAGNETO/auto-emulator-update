@@ -1,0 +1,48 @@
+{
+  "Id": "desmume",
+  "Name": "DeSmuME",
+  "Aliases": [
+    "DeSmuME",
+    "Desmume"
+  ],
+  "Executables": {
+    "windows": [
+      "DeSmuME_0.9.13_x64.exe",
+      "DeSmuME.exe",
+      "desmume.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "desmume-*-win64.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "TASEmulators/desmume"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

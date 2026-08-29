@@ -1,0 +1,54 @@
+{
+  "Id": "pcsx2",
+  "Name": "PCSX2",
+  "Aliases": [
+    "PCSX2",
+    "PCSX2 Nightly"
+  ],
+  "Executables": {
+    "windows": [
+      "pcsx2-qt.exe",
+      "pcsx2.exe"
+    ],
+    "linux": [
+      "pcsx2-qt",
+      "pcsx2"
+    ],
+    "macos": [
+      "PCSX2"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*windows-x64-Qt.7z*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "PCSX2/pcsx2"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

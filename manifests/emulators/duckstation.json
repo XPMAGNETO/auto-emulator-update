@@ -1,0 +1,55 @@
+{
+  "Id": "duckstation",
+  "Name": "DuckStation",
+  "Aliases": [
+    "DuckStation",
+    "Duckstation"
+  ],
+  "Executables": {
+    "windows": [
+      "duckstation-qt-x64-ReleaseLTCG.exe",
+      "duckstation-qt-x64-ReleaseLTCG-SSE2.exe",
+      "duckstation.exe"
+    ],
+    "linux": [
+      "duckstation-qt",
+      "duckstation"
+    ],
+    "macos": [
+      "DuckStation"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*duckstation-windows-x64-release.zip*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "stenzek/duckstation"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

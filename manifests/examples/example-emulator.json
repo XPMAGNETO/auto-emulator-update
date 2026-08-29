@@ -1,0 +1,21 @@
+{
+  "Id": "example-emulator",
+  "Name": "Example Emulator",
+  "Aliases": ["Example"],
+  "Executables": {
+    "windows": ["Example.exe"],
+    "linux": ["example"],
+    "macos": ["Example"]
+  },
+  "Packages": [
+    { "Os": "windows", "Arch": "x64", "AssetPattern": "*windows*x64*.zip" },
+    { "Os": "linux", "Arch": "x64", "AssetPattern": "*linux*x64*.tar.gz" },
+    { "Os": "macos", "Arch": "arm64", "AssetPattern": "*macos*arm64*.zip" }
+  ],
+  "Sources": [
+    { "Kind": "github", "Repository": "owner/repository" }
+  ],
+  "ProtectedPaths": ["config", "user"],
+  "SavePaths": ["saves"],
+  "DependencyHints": []
+}

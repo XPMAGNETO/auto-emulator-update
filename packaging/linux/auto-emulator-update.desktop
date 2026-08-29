@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Auto Emulator Update
+Comment=Keep emulator installations current
+Exec=AutoEmulatorUpdate.App
+Icon=auto-emulator-update
+Categories=Game;Utility;
+Terminal=false

@@ -1,0 +1,46 @@
+{
+  "Id": "bsnes",
+  "Name": "bsnes",
+  "Aliases": [
+    "bsnes",
+    "BSNES"
+  ],
+  "Executables": {
+    "windows": [
+      "bsnes.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*bsnes-windows.zip*"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "github",
+      "Repository": "bsnes-emu/bsnes"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": false
+}

@@ -1,0 +1,15 @@
+name: Emulator support request
+description: Request or fix an emulator definition
+title: "[Emulator] "
+body:
+  - type: input
+    id: project
+    attributes: { label: Emulator project }
+    validations: { required: true }
+  - type: input
+    id: official
+    attributes: { label: Official project/download URL }
+    validations: { required: true }
+  - type: textarea
+    id: platforms
+    attributes: { label: Platforms and package filenames }

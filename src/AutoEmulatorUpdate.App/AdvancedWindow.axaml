@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AutoEmulatorUpdate.App.AdvancedWindow"
+        Width="1100" Height="720"
+        Title="Auto Emulator Update — Advanced">
+  <TabControl Margin="12">
+    <TabItem Header="Health">
+      <DataGrid ItemsSource="{Binding Installed}" AutoGenerateColumns="False" IsReadOnly="True">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Emulator" Binding="{Binding Definition.Name}" Width="160"/>
+          <DataGridTextColumn Header="Source" Binding="{Binding SourceName}" Width="220"/>
+          <DataGridTextColumn Header="Health" Binding="{Binding SourceHealth}" Width="110"/>
+          <DataGridTextColumn Header="Detection" Binding="{Binding DetectionMethod}" Width="180"/>
+          <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="100"/>
+          <DataGridTextColumn Header="Portable" Binding="{Binding IsPortable}" Width="90"/>
+          <DataGridTextColumn Header="Channel" Binding="{Binding Channel}" Width="110"/>
+        </DataGrid.Columns>
+      </DataGrid>
+    </TabItem>
+    <TabItem Header="Raw log">
+      <TextBox Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True"
+               TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+    </TabItem>
+    <TabItem Header="About manifests">
+      <ScrollViewer>
+        <TextBlock Margin="18" TextWrapping="Wrap"
+                   Text="Emulator support is manifest-driven. Bundled manifests live with the application; user/community manifests are loaded from the application data directory. This screen is intentionally separate from the normal workflow so regular users do not need to manage JSON files."/>
+      </ScrollViewer>
+    </TabItem>
+  </TabControl>
+</Window>

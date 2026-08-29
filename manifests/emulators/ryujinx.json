@@ -1,0 +1,46 @@
+{
+  "Id": "ryujinx",
+  "Name": "Ryujinx",
+  "Aliases": [
+    "Ryujinx",
+    "Ryujinx Legacy"
+  ],
+  "Executables": {
+    "windows": [
+      "Ryujinx.exe"
+    ]
+  },
+  "Packages": [
+    {
+      "Os": "windows",
+      "Arch": "x64",
+      "AssetPattern": "*.zip"
+    }
+  ],
+  "Sources": [
+    {
+      "Kind": "static",
+      "VersionRegex": "1.1.1403"
+    }
+  ],
+  "ProtectedPaths": [
+    "portable.txt",
+    "portable.ini",
+    "config",
+    "Config",
+    "user",
+    "User",
+    "saves",
+    "Saves"
+  ],
+  "SavePaths": [
+    "saves",
+    "Saves",
+    "save",
+    "Save",
+    "user/save",
+    "User/Save"
+  ],
+  "DependencyHints": [],
+  "Legacy": true
+}
