@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -7,7 +9,57 @@ namespace AutoEmulatorUpdate.Core.Services;
 
 public sealed class ReleaseResolverService(HttpClient http, PlatformService platform)
 {
+    private sealed record CacheEntry(DateTimeOffset Created, Lazy<Task<ReleaseInfo>> Work);
+
+    private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
+
     public async Task<ReleaseInfo> ResolveAsync(EmulatorDefinition def, UpdateChannel channel, CancellationToken ct = default)
+    {
+        var key = $"{def.Id}|{channel}|{platform.RuntimeId}";
+
+        while (true)
+        {
+            if (_cache.TryGetValue(key, out var cached))
+            {
+                if (DateTimeOffset.UtcNow - cached.Created <= CacheLifetime)
+                {
+                    try
+                    {
+                        return await cached.Work.Value.WaitAsync(ct);
+                    }
+                    catch
+                    {
+                        _cache.TryRemove(key, out _);
+                        throw;
+                    }
+                }
+
+                _cache.TryRemove(key, out _);
+            }
+
+            var created = new CacheEntry(
+                DateTimeOffset.UtcNow,
+                new Lazy<Task<ReleaseInfo>>(
+                    () => ResolveUncachedAsync(def, channel, CancellationToken.None),
+                    LazyThreadSafetyMode.ExecutionAndPublication));
+
+            if (!_cache.TryAdd(key, created))
+                continue;
+
+            try
+            {
+                return await created.Work.Value.WaitAsync(ct);
+            }
+            catch
+            {
+                _cache.TryRemove(key, out _);
+                throw;
+            }
+        }
+    }
+
+    private async Task<ReleaseInfo> ResolveUncachedAsync(EmulatorDefinition def, UpdateChannel channel, CancellationToken ct)
     {
         var errors = new List<string>();
         foreach (var source in def.Sources)
@@ -40,13 +92,10 @@ public sealed class ReleaseResolverService(HttpClient http, PlatformService plat
             : $"https://api.github.com/repos/{repo}/releases?per_page=20";
 
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.UserAgent.ParseAdd("AutoEmulatorUpdate/10");
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-        if (!string.IsNullOrWhiteSpace(token)) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        ApplyGitHubHeaders(req);
 
         using var res = await http.SendAsync(req, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureGitHubSuccessAsync(res, ct);
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
         var release = doc.RootElement.ValueKind == JsonValueKind.Array
             ? doc.RootElement.EnumerateArray().FirstOrDefault(r => channel != UpdateChannel.Stable || !r.GetProperty("prerelease").GetBoolean())
@@ -85,9 +134,9 @@ public sealed class ReleaseResolverService(HttpClient http, PlatformService plat
     {
         var repo = source.Repository ?? throw new InvalidDataException("Repository missing.");
         using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/tags?per_page=30");
-        req.Headers.UserAgent.ParseAdd("AutoEmulatorUpdate/10");
+        ApplyGitHubHeaders(req);
         using var res = await http.SendAsync(req, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureGitHubSuccessAsync(res, ct);
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
         var tag = doc.RootElement.EnumerateArray().Select(x => x.GetProperty("name").GetString()).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
                   ?? throw new InvalidDataException("No tags found.");
@@ -124,6 +173,42 @@ public sealed class ReleaseResolverService(HttpClient http, PlatformService plat
         var dl = pkg.DirectUrlTemplate?.Replace("{version}", version).Replace("{tag}", version)
                  ?? throw new InvalidDataException("Static DirectUrlTemplate missing.");
         return new ReleaseInfo(version, dl, Path.GetFileName(new Uri(dl).AbsolutePath), "Static", Channel: channel);
+    }
+
+    private static void ApplyGitHubHeaders(HttpRequestMessage req)
+    {
+        req.Headers.UserAgent.ParseAdd("AutoEmulatorUpdate/10.1");
+        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        if (!string.IsNullOrWhiteSpace(token))
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private static async Task EnsureGitHubSuccessAsync(HttpResponseMessage res, CancellationToken ct)
+    {
+        if (res.IsSuccessStatusCode) return;
+
+        if (res.StatusCode == HttpStatusCode.Forbidden &&
+            res.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining) &&
+            remaining.FirstOrDefault() == "0")
+        {
+            var message = "GitHub API rate limit reached.";
+            if (res.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues) &&
+                long.TryParse(resetValues.FirstOrDefault(), out var resetUnix))
+            {
+                var reset = DateTimeOffset.FromUnixTimeSeconds(resetUnix).ToLocalTime();
+                message += $" GitHub says requests can resume around {reset:t}.";
+            }
+
+            throw new HttpRequestException(message, null, res.StatusCode);
+        }
+
+        var detail = await res.Content.ReadAsStringAsync(ct);
+        if (detail.Length > 200) detail = detail[..200];
+        throw new HttpRequestException(
+            $"GitHub request failed with {(int)res.StatusCode} ({res.ReasonPhrase}). {detail}".Trim(),
+            null,
+            res.StatusCode);
     }
 
     private PlatformPackage PackageFor(EmulatorDefinition def) =>
