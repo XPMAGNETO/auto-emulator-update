@@ -1,6 +1,8 @@
 name: Package Smoke Tests
 
 on:
+  push:
+    branches: [ ci/package-smoke-tests ]
   pull_request:
   workflow_dispatch:
 
