@@ -83,7 +83,7 @@
           <TabItem Header="{Binding NotInstalledHeader}">
             <Grid RowDefinitions="Auto,*">
               <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="8">
-                <TextBox Watermark="Search emulator library..." Text="{Binding LibrarySearch}" Margin="0,0,8,0"/>
+                <TextBox PlaceholderText="Search emulator library..." Text="{Binding LibrarySearch}" Margin="0,0,8,0"/>
                 <Button Grid.Column="1" Content="INSTALL SELECTED" Command="{Binding InstallSelectedCommand}"/>
               </Grid>
               <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredNotInstalled}" AutoGenerateColumns="False">
