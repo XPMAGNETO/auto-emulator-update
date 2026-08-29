@@ -8,6 +8,13 @@ public sealed class FrontendImportService(PlatformService platform)
 {
     public sealed record FrontendRoot(string Name, string Path);
 
+    private static readonly HashSet<string> FrontendNames = new(new[]
+    {
+        "LaunchBox", "RetroBat", "ES-DE", "EmulationStation", "Pegasus", "pegasus-frontend",
+        "RetroFE", "HyperSpin", "RocketLauncher", "GameEx", "mGalaxy", "CoinOPS", "Playnite",
+        "steam-rom-manager", "Steam ROM Manager"
+    }, StringComparer.OrdinalIgnoreCase);
+
     public IEnumerable<FrontendRoot> DetectRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -25,32 +32,75 @@ public sealed class FrontendImportService(PlatformService platform)
                 new("Steam ROM Manager", Path.Combine(app, "steam-rom-manager"))
             ]);
 
-            var frontendNames = new HashSet<string>(new[]
-            {
-                "LaunchBox", "RetroBat", "ES-DE", "EmulationStation", "Pegasus", "RetroFE",
-                "HyperSpin", "RocketLauncher", "GameEx", "mGalaxy", "CoinOPS", "Playnite"
-            }, StringComparer.OrdinalIgnoreCase);
-
             foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady &&
                          (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
             {
-                foreach (var root in FindFrontendDirectories(d.RootDirectory.FullName, frontendNames, 5, 40000))
+                foreach (var root in FindFrontendDirectories(d.RootDirectory.FullName, FrontendNames, 5, 40000, true))
                     candidates.Add(root);
             }
         }
         else if (platform.IsBatocera)
         {
             candidates.Add(new("Batocera", "/userdata/system/configs"));
+            candidates.Add(new("EmulationStation", "/userdata/system/configs/emulationstation"));
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config");
+            candidates.AddRange([
+                new("ES-DE", Path.Combine(home, "ES-DE")),
+                new("ES-DE", Path.Combine(home, "Library", "Application Support", "ES-DE")),
+                new("EmulationStation", Path.Combine(home, ".emulationstation")),
+                new("Pegasus", Path.Combine(config, "pegasus-frontend")),
+                new("Pegasus", Path.Combine(home, "Library", "Application Support", "pegasus-frontend")),
+                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager")),
+                new("Steam ROM Manager", Path.Combine(home, "Library", "Application Support", "steam-rom-manager"))
+            ]);
+
+            foreach (var seed in new[]
+            {
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, "Library", "Application Support"),
+                "/Applications",
+                "/Volumes"
+            }.Where(Directory.Exists))
+            {
+                foreach (var root in FindFrontendDirectories(seed, FrontendNames, 4, 25000, false))
+                    candidates.Add(root);
+            }
         }
         else
         {
             var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config");
             candidates.AddRange([
                 new("ES-DE", Path.Combine(home, "ES-DE")),
+                new("ES-DE", Path.Combine(config, "ES-DE")),
                 new("EmulationStation", Path.Combine(home, ".emulationstation")),
                 new("Pegasus", Path.Combine(config, "pegasus-frontend")),
-                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager"))
+                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager")),
+                new("Steam ROM Manager", Path.Combine(home, ".var", "app", "com.steamgriddb.steam-rom-manager"))
             ]);
+
+            foreach (var seed in new[]
+            {
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, ".config"),
+                Path.Combine(home, ".var", "app"),
+                "/opt",
+                "/mnt",
+                "/media",
+                "/run/media"
+            }.Where(Directory.Exists))
+            {
+                foreach (var root in FindFrontendDirectories(seed, FrontendNames, 4, 25000, false))
+                    candidates.Add(root);
+            }
         }
 
         return candidates.Where(x => Directory.Exists(x.Path))
@@ -102,7 +152,12 @@ public sealed class FrontendImportService(PlatformService platform)
         return result;
     }
 
-    private static IEnumerable<FrontendRoot> FindFrontendDirectories(string root, HashSet<string> names, int maxDepth, int maxVisited)
+    private static IEnumerable<FrontendRoot> FindFrontendDirectories(
+        string root,
+        HashSet<string> names,
+        int maxDepth,
+        int maxVisited,
+        bool useWindowsSkips)
     {
         var q = new Queue<(string path, int depth)>();
         q.Enqueue((root, 0));
@@ -117,8 +172,19 @@ public sealed class FrontendImportService(PlatformService platform)
             {
                 var name = Path.GetFileName(child);
                 if (names.Contains(name))
-                    yield return new FrontendRoot(name, child);
-                if (depth < maxDepth && !PlatformService.IsSkippedWindowsDirectory(name))
+                {
+                    var display = name.Equals("pegasus-frontend", StringComparison.OrdinalIgnoreCase) ? "Pegasus" :
+                                  name.Equals("steam-rom-manager", StringComparison.OrdinalIgnoreCase) ? "Steam ROM Manager" : name;
+                    yield return new FrontendRoot(display, child);
+                }
+
+                var skip = useWindowsSkips
+                    ? PlatformService.IsSkippedWindowsDirectory(name)
+                    : name.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals("Caches", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals("cache", StringComparison.OrdinalIgnoreCase);
+                if (depth < maxDepth && !skip)
                     q.Enqueue((child, depth + 1));
             }
         }
