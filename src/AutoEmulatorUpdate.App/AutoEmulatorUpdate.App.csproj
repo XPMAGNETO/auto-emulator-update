@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>AutoEmulatorUpdate.App</RootNamespace>
     <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
   <ItemGroup>
