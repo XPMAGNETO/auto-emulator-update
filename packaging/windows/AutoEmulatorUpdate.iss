@@ -1,5 +1,5 @@
 #define MyAppName "Auto Emulator Update"
-#define MyAppVersion "10.1.0-alpha.1"
+#define MyAppVersion "10.1.0-alpha.3"
 #define MyAppPublisher "Auto Emulator Update"
 #define MyAppExeName "AutoEmulatorUpdate.App.exe"
 
