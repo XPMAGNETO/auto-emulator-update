@@ -1,5 +1,5 @@
 #define MyAppName "Auto Emulator Updater"
-#define MyAppVersion "10.1.0-alpha.6"
+#define MyAppVersion "10.1.0-alpha.7"
 #define MyAppPublisher "Auto Emulator Updater"
 #define MyAppExeName "AutoEmulatorUpdate.App.exe"
 
@@ -24,8 +24,8 @@ WizardStyle=modern
 Source: "..\..\artifacts\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; IconIndex: 0
+Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; IconIndex: 0; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
