@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -62,6 +62,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          dotnet restore src/AutoEmulatorUpdate.App -r win-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/smoke
@@ -77,6 +78,7 @@ jobs:
       - name: Publish and launch Linux smoke build
         if: runner.os == 'Linux'
         run: |
+          dotnet restore src/AutoEmulatorUpdate.App -r linux-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/smoke
@@ -87,6 +89,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           if [[ "$(uname -m)" == "arm64" ]]; then RID=osx-arm64; else RID=osx-x64; fi
+          dotnet restore src/AutoEmulatorUpdate.App -r "$RID"
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r "$RID" --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/smoke
