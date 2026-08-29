@@ -51,13 +51,23 @@ mkdir -p "$MOUNT"
 hdiutil create -size "${IMAGE_MB}m" -fs HFS+ -volname "Auto Emulator Update" "$RW_DMG"
 hdiutil attach "$RW_DMG" -nobrowse -mountpoint "$MOUNT"
 cleanup() {
-  hdiutil detach "$MOUNT" >/dev/null 2>&1 || true
+  hdiutil detach "$MOUNT" >/dev/null 2>&1 || hdiutil detach -force "$MOUNT" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 ditto "$APP" "$MOUNT/Auto Emulator Update.app"
 sync
-hdiutil detach "$MOUNT"
+cd "$ROOT"
+for attempt in 1 2 3; do
+  if hdiutil detach "$MOUNT"; then
+    break
+  fi
+  if (( attempt == 3 )); then
+    hdiutil detach -force "$MOUNT"
+  else
+    sleep 2
+  fi
+done
 trap - EXIT
 rmdir "$MOUNT" || true
 
