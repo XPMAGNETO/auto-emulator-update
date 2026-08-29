@@ -85,8 +85,18 @@ jobs:
 
           $exe = Join-Path $upgradeDir "AutoEmulatorUpdate.App.exe"
           if (-not (Test-Path $exe)) { throw "alpha.5 executable was not found at $exe" }
-          $oldApp = Start-Process -FilePath $exe -ArgumentList "--first-run-smoke-test" -Wait -PassThru
-          if ($oldApp.ExitCode -ne 0) { throw "alpha.5 app did not launch before upgrade: $($oldApp.ExitCode)" }
+
+          # alpha.5 predates --first-run-smoke-test, so verify that it can actually launch
+          # without waiting forever for its interactive first-run UI to exit.
+          $oldApp = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 3
+          if ($oldApp.HasExited) {
+            if ($oldApp.ExitCode -ne 0) { throw "alpha.5 app failed to launch before upgrade: $($oldApp.ExitCode)" }
+          }
+          else {
+            Stop-Process -Id $oldApp.Id -Force
+            Wait-Process -Id $oldApp.Id -ErrorAction SilentlyContinue
+          }
 
           $currentInstaller = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
           $upgrade = Start-Process -FilePath $currentInstaller -ArgumentList @(
