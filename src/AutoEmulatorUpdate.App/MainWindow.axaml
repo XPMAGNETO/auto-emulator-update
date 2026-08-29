@@ -167,6 +167,7 @@
             <WrapPanel>
               <Button Content="CHECK APP UPDATE" Command="{Binding CheckAppUpdateCommand}" Margin="0,0,8,8"/>
               <Button Content="CREATE DIAGNOSTIC ZIP" Command="{Binding DiagnosticCommand}" Margin="0,0,8,8"/>
+              <Button Content="REPORT A PROBLEM" Click="ReportProblem_Click" Margin="0,0,8,8"/>
               <Button Content="ADVANCED / DEVELOPER TOOLS" Command="{Binding AdvancedCommand}" Margin="0,0,8,8"/>
             </WrapPanel>
 

@@ -44,6 +44,8 @@ public sealed class DiagnosticService(AppPaths paths)
             settings.VerifyChecksums,
             settings.VerifySignatures,
             settings.AutoRollbackOnValidationFailure,
+            settings.PostUpdateLaunchTest,
+            settings.PostUpdateLaunchTestSeconds,
             settings.NotificationsEnabled,
             settings.FrontendProtectionDefault,
             settings.MaintenanceMode,

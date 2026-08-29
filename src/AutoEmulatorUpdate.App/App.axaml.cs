@@ -15,8 +15,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Keep the process alive while the ownerless first-run wizard is shown.
-            // ShowDialog requires a real owner window and passing null can throw at runtime.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             _ = InitializeDesktopAsync(desktop);
         }
@@ -34,14 +32,11 @@ public partial class App : Application
             var store = new JsonStore();
             AppSettings settings;
 
-            if (Program.SmokeTestMode)
+            if (Program.SmokeTestMode || Program.FirstRunSmokeTestMode)
             {
-                // Use an isolated, deterministic startup configuration for CI/package tests.
-                // This still loads the real Avalonia application, XAML, manifests and main window,
-                // but avoids network scans and the interactive first-run wizard.
                 settings = new AppSettings
                 {
-                    FirstRunCompleted = true,
+                    FirstRunCompleted = !Program.FirstRunSmokeTestMode,
                     StartupBehavior = StartupBehavior.Manual,
                     AutoAppUpdates = false,
                     BackgroundMode = false,
@@ -63,8 +58,18 @@ public partial class App : Application
                 var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 wizard.Closed += (_, _) => closed.TrySetResult();
                 wizard.Show();
-                await closed.Task;
 
+                if (Program.FirstRunSmokeTestMode)
+                {
+                    // Exercise the real installed first-run window, then automatically continue
+                    // so CI can verify that a brand-new installation reaches the dashboard.
+                    await Task.Delay(1000);
+                    wizard.Close();
+                    settings.FirstRunCompleted = true;
+                    await store.SaveAsync(paths.SettingsFile, settings);
+                }
+
+                await closed.Task;
                 settings = await store.LoadAsync(paths.SettingsFile, new AppSettings());
             }
 
@@ -86,11 +91,11 @@ public partial class App : Application
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             await vm.InitializeAsync();
 
-            if (Program.SmokeTestMode)
+            if (Program.SmokeTestMode || Program.FirstRunSmokeTestMode)
             {
-                // Give Avalonia a moment to create/render the top-level window before exiting.
                 await Task.Delay(750);
-                await log.WriteAsync("SMOKE TEST PASSED: main window loaded successfully.");
+                var kind = Program.FirstRunSmokeTestMode ? "FIRST-RUN SMOKE TEST" : "SMOKE TEST";
+                await log.WriteAsync($"{kind} PASSED: application reached the main window successfully.");
                 desktop.Shutdown(0);
             }
         }
@@ -105,7 +110,7 @@ public partial class App : Application
                 // Never hide the original startup failure because logging also failed.
             }
 
-            if (Program.SmokeTestMode)
+            if (Program.SmokeTestMode || Program.FirstRunSmokeTestMode)
             {
                 Console.Error.WriteLine(ex);
                 desktop.Shutdown(1);

@@ -105,6 +105,8 @@ public sealed record BackupRecord(
     DateTimeOffset Timestamp,
     string Path);
 
+public sealed record LaunchValidationResult(bool Success, string Message, int? ExitCode = null);
+
 public sealed class AppSettings
 {
     public bool AutoScanDrives { get; set; } = true;
@@ -117,6 +119,8 @@ public sealed class AppSettings
     public bool VerifyChecksums { get; set; } = true;
     public bool VerifySignatures { get; set; } = true;
     public bool AutoRollbackOnValidationFailure { get; set; } = true;
+    public bool PostUpdateLaunchTest { get; set; } = true;
+    public int PostUpdateLaunchTestSeconds { get; set; } = 4;
     public bool NotificationsEnabled { get; set; } = true;
     public bool FrontendProtectionDefault { get; set; } = true;
     public MaintenanceMode MaintenanceMode { get; set; } = MaintenanceMode.BackupUpdateVerify;
