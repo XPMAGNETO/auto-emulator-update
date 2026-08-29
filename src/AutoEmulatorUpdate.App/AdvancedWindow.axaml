@@ -19,7 +19,7 @@
     </TabItem>
     <TabItem Header="Raw log">
       <TextBox Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True"
-               TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+               TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
     </TabItem>
     <TabItem Header="About manifests">
       <ScrollViewer>
