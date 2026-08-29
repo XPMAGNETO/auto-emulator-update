@@ -8,9 +8,14 @@ VERSION="$(cat "$ROOT/VERSION")"
 APP="$ROOT/artifacts/Auto Emulator Update.app"
 DMG="$ROOT/artifacts/AutoEmulatorUpdate-${VERSION}-${RID}.dmg"
 
-rm -rf "$APP"
+rm -rf "$APP" "$DMG"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp -a "$PUBLISH/." "$APP/Contents/MacOS/"
+
+# Move the publish payload instead of copying it. GitHub macOS runners have
+# limited free disk space and a second full self-contained runtime copy can
+# make hdiutil fail with ENOSPC, especially for the Intel cross-build.
+find "$PUBLISH" -mindepth 1 -maxdepth 1 -exec mv {} "$APP/Contents/MacOS/" \;
+rmdir "$PUBLISH" || true
 chmod +x "$APP/Contents/MacOS/AutoEmulatorUpdate.App"
 
 cat > "$APP/Contents/Info.plist" <<EOF
@@ -27,6 +32,12 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict></plist>
 EOF
 
-rm -f "$DMG"
+# Once the .app exists the compiler outputs and NuGet cache are disposable.
+# Clearing them gives hdiutil more temporary workspace on hosted runners.
+rm -rf "$ROOT/src/AutoEmulatorUpdate.App/bin" "$ROOT/src/AutoEmulatorUpdate.App/obj" \
+       "$ROOT/src/AutoEmulatorUpdate.Core/bin" "$ROOT/src/AutoEmulatorUpdate.Core/obj" || true
+dotnet nuget locals all --clear >/dev/null 2>&1 || true
+
+df -h .
 hdiutil create -volname "Auto Emulator Update" -srcfolder "$APP" -ov -format UDZO "$DMG"
 echo "$DMG"
