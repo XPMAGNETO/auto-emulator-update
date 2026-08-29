@@ -8,6 +8,13 @@ public sealed class FrontendImportService(PlatformService platform)
 {
     public sealed record FrontendRoot(string Name, string Path);
 
+    private static readonly HashSet<string> FrontendNames = new(new[]
+    {
+        "LaunchBox", "RetroBat", "ES-DE", "EmulationStation", "Pegasus", "pegasus-frontend",
+        "RetroFE", "HyperSpin", "RocketLauncher", "GameEx", "mGalaxy", "CoinOPS", "Playnite",
+        "steam-rom-manager", "Steam ROM Manager"
+    }, StringComparer.OrdinalIgnoreCase);
+
     public IEnumerable<FrontendRoot> DetectRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -25,32 +32,75 @@ public sealed class FrontendImportService(PlatformService platform)
                 new("Steam ROM Manager", Path.Combine(app, "steam-rom-manager"))
             ]);
 
-            // RetroBat is portable and can live on SSD/HDD/USB storage, so scan
-            // both fixed and removable drives instead of assuming C:\RetroBat.
             foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady &&
                          (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
             {
-                foreach (var name in new[] { "LaunchBox", "RetroBat", "ES-DE", "Pegasus", "RetroFE", "HyperSpin", "RocketLauncher", "GameEx", "mGalaxy", "CoinOPS" })
-                    candidates.Add(new(name, Path.Combine(d.RootDirectory.FullName, name)));
+                foreach (var root in FindFrontendDirectories(d.RootDirectory.FullName, FrontendNames, 5, 40000, true))
+                    candidates.Add(root);
             }
         }
         else if (platform.IsBatocera)
         {
-            // Batocera itself owns the bundled emulator stack. We surface its
-            // configuration root for visibility, but Auto Emulator Update only
-            // discovers/manages standalone emulators under writable /userdata
-            // paths from PlatformService.DefaultSearchRoots().
             candidates.Add(new("Batocera", "/userdata/system/configs"));
+            candidates.Add(new("EmulationStation", "/userdata/system/configs/emulationstation"));
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config");
+            candidates.AddRange([
+                new("ES-DE", Path.Combine(home, "ES-DE")),
+                new("ES-DE", Path.Combine(home, "Library", "Application Support", "ES-DE")),
+                new("EmulationStation", Path.Combine(home, ".emulationstation")),
+                new("Pegasus", Path.Combine(config, "pegasus-frontend")),
+                new("Pegasus", Path.Combine(home, "Library", "Application Support", "pegasus-frontend")),
+                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager")),
+                new("Steam ROM Manager", Path.Combine(home, "Library", "Application Support", "steam-rom-manager"))
+            ]);
+
+            foreach (var seed in new[]
+            {
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, "Library", "Application Support"),
+                "/Applications",
+                "/Volumes"
+            }.Where(Directory.Exists))
+            {
+                foreach (var root in FindFrontendDirectories(seed, FrontendNames, 4, 25000, false))
+                    candidates.Add(root);
+            }
         }
         else
         {
             var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config");
             candidates.AddRange([
                 new("ES-DE", Path.Combine(home, "ES-DE")),
+                new("ES-DE", Path.Combine(config, "ES-DE")),
                 new("EmulationStation", Path.Combine(home, ".emulationstation")),
                 new("Pegasus", Path.Combine(config, "pegasus-frontend")),
-                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager"))
+                new("Steam ROM Manager", Path.Combine(config, "steam-rom-manager")),
+                new("Steam ROM Manager", Path.Combine(home, ".var", "app", "com.steamgriddb.steam-rom-manager"))
             ]);
+
+            foreach (var seed in new[]
+            {
+                Path.Combine(home, "Applications"),
+                Path.Combine(home, "Downloads"),
+                Path.Combine(home, "Documents"),
+                Path.Combine(home, "Games"),
+                Path.Combine(home, ".config"),
+                Path.Combine(home, ".var", "app"),
+                "/opt",
+                "/mnt",
+                "/media",
+                "/run/media"
+            }.Where(Directory.Exists))
+            {
+                foreach (var root in FindFrontendDirectories(seed, FrontendNames, 4, 25000, false))
+                    candidates.Add(root);
+            }
         }
 
         return candidates.Where(x => Directory.Exists(x.Path))
@@ -68,9 +118,6 @@ public sealed class FrontendImportService(PlatformService platform)
         foreach (var root in roots)
         {
             ct.ThrowIfCancellationRequested();
-
-            // Do not import Batocera's built-in emulator executables for direct
-            // replacement: Batocera updates those through its own updater.
             if (platform.IsBatocera && root.Name.Equals("Batocera", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -89,7 +136,7 @@ public sealed class FrontendImportService(PlatformService platform)
                 catch { }
             }
 
-            foreach (var file in EnumerateConfigs(root.Path, 5, 750))
+            foreach (var file in EnumerateConfigs(root.Path, 6, 1500))
             {
                 string text;
                 try { text = await File.ReadAllTextAsync(file, ct); } catch { continue; }
@@ -105,6 +152,44 @@ public sealed class FrontendImportService(PlatformService platform)
         return result;
     }
 
+    private static IEnumerable<FrontendRoot> FindFrontendDirectories(
+        string root,
+        HashSet<string> names,
+        int maxDepth,
+        int maxVisited,
+        bool useWindowsSkips)
+    {
+        var q = new Queue<(string path, int depth)>();
+        q.Enqueue((root, 0));
+        var visited = 0;
+        while (q.Count > 0 && visited < maxVisited)
+        {
+            var (dir, depth) = q.Dequeue();
+            visited++;
+            string[] children;
+            try { children = Directory.GetDirectories(dir); } catch { continue; }
+            foreach (var child in children)
+            {
+                var name = Path.GetFileName(child);
+                if (names.Contains(name))
+                {
+                    var display = name.Equals("pegasus-frontend", StringComparison.OrdinalIgnoreCase) ? "Pegasus" :
+                                  name.Equals("steam-rom-manager", StringComparison.OrdinalIgnoreCase) ? "Steam ROM Manager" : name;
+                    yield return new FrontendRoot(display, child);
+                }
+
+                var skip = useWindowsSkips
+                    ? PlatformService.IsSkippedWindowsDirectory(name)
+                    : name.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals("Caches", StringComparison.OrdinalIgnoreCase) ||
+                      name.Equals("cache", StringComparison.OrdinalIgnoreCase);
+                if (depth < maxDepth && !skip)
+                    q.Enqueue((child, depth + 1));
+            }
+        }
+    }
+
     private static IEnumerable<string> EnumerateConfigs(string root, int maxDepth, int maxFiles)
     {
         var results = new List<string>();
@@ -117,16 +202,12 @@ public sealed class FrontendImportService(PlatformService platform)
             var (dir, depth) = q.Dequeue();
             string[] files;
             string[] directories;
-
             try
             {
                 files = Directory.GetFiles(dir);
                 directories = depth < maxDepth ? Directory.GetDirectories(dir) : [];
             }
-            catch
-            {
-                continue;
-            }
+            catch { continue; }
 
             foreach (var file in files)
             {
@@ -138,11 +219,9 @@ public sealed class FrontendImportService(PlatformService platform)
                 }
                 catch { }
             }
-
             foreach (var child in directories)
                 q.Enqueue((child, depth + 1));
         }
-
         return results;
     }
 
