@@ -6,7 +6,7 @@
     <FluentTheme />
     <StyleInclude Source="avares://AutoEmulatorUpdate.App/Styles/AppStyles.axaml" />
     <Style Selector="Window">
-      <Setter Property="Icon" Value="avares://AutoEmulatorUpdate.App/Assets/app-icon.ico" />
+      <Setter Property="Icon" Value="avares://AutoEmulatorUpdate.App/Assets/app-icon.png" />
     </Style>
   </Application.Styles>
 </Application>
