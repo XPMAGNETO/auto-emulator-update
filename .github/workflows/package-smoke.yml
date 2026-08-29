@@ -152,6 +152,6 @@ jobs:
           mkdir -p "$MOUNT"
           hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT"
           trap 'hdiutil detach "$MOUNT" || true' EXIT
-          EXE="$MOUNT/Auto Emulator Update.app/Contents/MacOS/AutoEmulatorUpdate.App"
+          EXE="$MOUNT/Auto Emulator Updater.app/Contents/MacOS/AutoEmulatorUpdate.App"
           test -x "$EXE"
           "$EXE" --smoke-test
