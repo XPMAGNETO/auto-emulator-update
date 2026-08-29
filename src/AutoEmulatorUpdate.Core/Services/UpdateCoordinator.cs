@@ -9,8 +9,13 @@ public sealed class UpdateCoordinator(
     BackupService backups,
     JsonStore store,
     AppPaths paths,
-    VersionService versions)
+    VersionService versions,
+    UpdateTransactionService? transactions = null,
+    LaunchValidationService? launchValidator = null)
 {
+    private readonly UpdateTransactionService _transactions = transactions ?? new UpdateTransactionService();
+    private readonly LaunchValidationService _launchValidator = launchValidator ?? new LaunchValidationService();
+
     public async Task<ReleaseInfo> CheckAsync(InstalledEmulator emulator, CancellationToken ct = default)
     {
         var release = await resolver.ResolveAsync(emulator.Definition, emulator.Channel, ct);
@@ -33,14 +38,18 @@ public sealed class UpdateCoordinator(
         var emu = item.Emulator;
         BackupRecord? backup = null;
         ReleaseInfo? release = null;
+        UpdateSwapHandle? swap = null;
+        string? candidate = null;
+        string stage = "Resolving release";
+        var oldVersion = emu.CurrentVersion;
 
         try
         {
             release = await resolver.ResolveAsync(emu.Definition, emu.Channel, ct);
-            var old = emu.CurrentVersion;
 
             if (item.Action == QueueAction.DownloadOnly)
             {
+                stage = "Downloading";
                 await downloader.DownloadAsync(emu.Definition.Id, release, settings.BandwidthLimitMBps,
                     new Progress<double>(p => progress?.Report((p, $"Downloading {emu.Definition.Name}"))), ct);
                 item.State = QueueState.Complete;
@@ -48,73 +57,161 @@ public sealed class UpdateCoordinator(
                 return;
             }
 
-            if (item.Action != QueueAction.Install)
+            if (item.Action != QueueAction.Install && Directory.Exists(emu.InstallPath))
             {
+                stage = "Backing up";
                 backup = await backups.BackupAsync(emu,
-                    new Progress<string>(m => progress?.Report((0, $"Backing up {m}"))), ct);
+                    new Progress<string>(m => progress?.Report((Math.Min(item.Progress, 10), $"Backing up {m}"))), ct);
             }
 
+            stage = "Checking disk space";
             EnsureDiskSpace(emu.InstallPath, release.SizeBytes);
+
+            stage = "Downloading";
             var package = await downloader.DownloadAsync(
                 emu.Definition.Id, release, settings.BandwidthLimitMBps,
-                new Progress<double>(p => progress?.Report((p * .6, $"Downloading {emu.Definition.Name}"))), ct);
+                new Progress<double>(p => progress?.Report((p * .5, $"Downloading {emu.Definition.Name}"))), ct);
 
-            var staging = Path.Combine(Path.GetTempPath(), "AEU", Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(staging);
+            var extraction = Path.Combine(Path.GetTempPath(), "AEU", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(extraction);
             try
             {
-                await archives.ExtractAsync(package, staging,
-                    new Progress<string>(m => progress?.Report((65, m))), ct);
-                var payloadRoot = CollapseSingleDirectory(staging);
-                await CopyTreeAsync(payloadRoot, emu.InstallPath,
-                    new Progress<double>(p => progress?.Report((65 + p * .35, "Installing"))), ct);
+                stage = "Extracting";
+                await archives.ExtractAsync(package, extraction,
+                    new Progress<string>(m => progress?.Report((55, m))), ct);
+                var payloadRoot = CollapseSingleDirectory(extraction);
 
-                if (!Validate(emu))
-                {
-                    if (settings.AutoRollbackOnValidationFailure && backup is not null)
-                        await backups.RollbackAsync(emu, backup, null, ct);
-                    throw new InvalidDataException("Post-update validation failed: executable was not found.");
-                }
+                stage = "Preparing transaction";
+                candidate = await _transactions.PrepareCandidateAsync(
+                    emu,
+                    payloadRoot,
+                    new Progress<double>(p => progress?.Report((55 + p * .25, "Preparing safe update"))),
+                    ct);
+
+                stage = "Validating staged update";
+                if (!UpdateTransactionService.ValidateCandidate(emu, candidate))
+                    throw new InvalidDataException("Staged update validation failed: the emulator executable was not found in the candidate installation.");
+
+                stage = "Committing transaction";
+                progress?.Report((82, "Switching to the new version"));
+                swap = _transactions.Commit(emu.InstallPath, candidate);
+                candidate = null;
 
                 emu.CurrentVersion = release.Version;
                 emu.LatestVersion = release.Version;
+                emu.Status = "Validating";
+
+                if (settings.PostUpdateLaunchTest)
+                {
+                    stage = "Launch validation";
+                    progress?.Report((90, "Launching emulator for post-update validation"));
+                    var seconds = Math.Clamp(settings.PostUpdateLaunchTestSeconds, 2, 30);
+                    var launch = await _launchValidator.ValidateAsync(emu, TimeSpan.FromSeconds(seconds), ct);
+                    if (!launch.Success)
+                        throw new InvalidDataException($"Post-update launch test failed: {launch.Message}");
+                }
+
+                stage = "Finalizing transaction";
+                await _transactions.CompleteAsync(swap);
+                swap = null;
+
                 emu.Status = "Up to date";
                 item.State = QueueState.Complete;
                 item.Progress = 100;
-                item.Message = "Complete";
+                item.Message = settings.PostUpdateLaunchTest ? "Complete - launch verified" : "Complete - files verified";
+                progress?.Report((100, item.Message));
 
                 await store.AppendJsonLineAsync(paths.HistoryFile,
-                    new HistoryEntry(DateTimeOffset.Now, emu.Definition.Name, item.Action.ToString(), old, release.Version, "Success", release.Source, backup?.Path), ct);
+                    new HistoryEntry(DateTimeOffset.Now, emu.Definition.Name, item.Action.ToString(), oldVersion, release.Version,
+                        settings.PostUpdateLaunchTest ? "Success - launch verified" : "Success - files verified", release.Source, backup?.Path), ct);
             }
-            finally { try { Directory.Delete(staging, true); } catch { } }
+            finally
+            {
+                try { Directory.Delete(extraction, true); } catch { }
+                if (candidate is not null)
+                {
+                    try { Directory.Delete(candidate, true); } catch { }
+                }
+            }
         }
         catch (OperationCanceledException)
         {
-            item.State = QueueState.Cancelled; item.Message = "Cancelled"; throw;
+            var rollbackMessage = await TryRollbackAsync(emu, swap, backup);
+            emu.CurrentVersion = oldVersion;
+            emu.Status = rollbackMessage is null ? "Cancelled" : "Rolled back";
+            item.State = QueueState.Cancelled;
+            item.Message = rollbackMessage is null ? "Cancelled" : $"Cancelled - {rollbackMessage}";
+            await store.AppendJsonLineAsync(paths.FailureFile,
+                new FailureEntry(DateTimeOffset.Now, emu.Definition.Name, stage, item.Message, release?.Source), CancellationToken.None);
+            throw;
         }
         catch (Exception ex)
         {
-            item.State = QueueState.Failed; item.Message = ex.Message;
+            var rollbackMessage = await TryRollbackAsync(emu, swap, backup);
+            emu.CurrentVersion = oldVersion;
+            emu.Status = rollbackMessage is null ? "Needs attention" : "Rolled back";
+            item.State = QueueState.Failed;
+            item.Message = rollbackMessage is null ? ex.Message : $"{ex.Message} {rollbackMessage}";
             await store.AppendJsonLineAsync(paths.FailureFile,
-                new FailureEntry(DateTimeOffset.Now, emu.Definition.Name, item.Action.ToString(), ex.Message, release?.Source), ct);
-            throw;
+                new FailureEntry(DateTimeOffset.Now, emu.Definition.Name, stage, item.Message, release?.Source), CancellationToken.None);
+            throw new InvalidOperationException(item.Message, ex);
         }
     }
 
-    private static bool Validate(InstalledEmulator emu)
+    private async Task<string?> TryRollbackAsync(InstalledEmulator emulator, UpdateSwapHandle? swap, BackupRecord? backup)
     {
-        if (emu.ExecutablePath is not null && File.Exists(emu.ExecutablePath)) return true;
-        return emu.Definition.Executables.Values.SelectMany(x => x)
-            .Any(x => File.Exists(Path.Combine(emu.InstallPath, x)));
+        if (swap is null) return null;
+
+        try
+        {
+            await _transactions.RollbackAsync(swap);
+            return "The previous installation was restored automatically.";
+        }
+        catch (Exception transactionError)
+        {
+            if (backup is not null)
+            {
+                try
+                {
+                    await backups.RollbackAsync(emulator, backup, null, CancellationToken.None);
+                    return $"The transaction rollback failed ({transactionError.Message}), but the backup was restored successfully.";
+                }
+                catch (Exception backupError)
+                {
+                    return $"Automatic rollback failed. Transaction error: {transactionError.Message}. Backup restore error: {backupError.Message}.";
+                }
+            }
+
+            return $"Automatic rollback failed: {transactionError.Message}.";
+        }
     }
 
     private static void EnsureDiskSpace(string target, long? packageBytes)
     {
-        var root = Path.GetPathRoot(Path.GetFullPath(target))!;
+        var fullTarget = Path.GetFullPath(target);
+        var root = Path.GetPathRoot(fullTarget)!;
         var drive = new DriveInfo(root);
-        var need = Math.Max(packageBytes.GetValueOrDefault(512L * 1024 * 1024) * 3, 512L * 1024 * 1024);
+        var currentInstallBytes = DirectorySize(fullTarget);
+        var packageEstimate = packageBytes.GetValueOrDefault(512L * 1024 * 1024);
+        var need = Math.Max(currentInstallBytes * 2 + packageEstimate * 2, 768L * 1024 * 1024);
         if (drive.AvailableFreeSpace < need)
-            throw new IOException($"Not enough free space. Need about {need / 1024d / 1024d / 1024d:F2} GB.");
+            throw new IOException($"Not enough free space for a safe transactional update. Need about {need / 1024d / 1024d / 1024d:F2} GB.");
+    }
+
+    private static long DirectorySize(string path)
+    {
+        if (!Directory.Exists(path)) return 0;
+        long total = 0;
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                total += new FileInfo(file).Length;
+        }
+        catch
+        {
+            // A conservative package-size estimate still applies if one file cannot be measured.
+        }
+        return total;
     }
 
     private static string CollapseSingleDirectory(string dir)
@@ -122,20 +219,5 @@ public sealed class UpdateCoordinator(
         var files = Directory.EnumerateFiles(dir).Any();
         var dirs = Directory.EnumerateDirectories(dir).ToArray();
         return !files && dirs.Length == 1 ? dirs[0] : dir;
-    }
-
-    private static async Task CopyTreeAsync(string source, string dest, IProgress<double>? progress, CancellationToken ct)
-    {
-        var files = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).ToArray();
-        for (var i = 0; i < files.Length; i++)
-        {
-            ct.ThrowIfCancellationRequested();
-            var target = Path.Combine(dest, Path.GetRelativePath(source, files[i]));
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            await using var input = File.OpenRead(files[i]);
-            await using var output = File.Create(target);
-            await input.CopyToAsync(output, ct);
-            progress?.Report((i + 1) * 100d / Math.Max(1, files.Length));
-        }
     }
 }
