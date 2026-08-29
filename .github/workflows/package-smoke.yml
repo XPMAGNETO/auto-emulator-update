@@ -1,0 +1,116 @@
+name: Package Smoke Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish Windows x64
+        shell: pwsh
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o artifacts/win-x64
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging/windows/AutoEmulatorUpdate.iss
+      - name: Install and launch Windows package
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Update Smoke"
+          $process = Start-Process -FilePath $installer -ArgumentList @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/SP-",
+            "/DIR=`"$installDir`""
+          ) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer failed with exit code $($process.ExitCode)" }
+          $exe = Join-Path $installDir "AutoEmulatorUpdate.App.exe"
+          if (-not (Test-Path $exe)) { throw "Installed executable was not found at $exe" }
+          & $exe --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Installed Windows app failed startup smoke test: $LASTEXITCODE" }
+
+  linux-appimages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install GUI/AppImage dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb fuse file libx11-6 libice6 libsm6 libfontconfig1
+      - name: Publish Linux x64
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/linux-x64
+      - name: Build AppImage
+        run: |
+          curl -L -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool packaging/linux/build-appimage.sh
+          APPIMAGETOOL="$PWD/appimagetool" packaging/linux/build-appimage.sh linux-x64
+          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-SteamOS-x64.AppImage
+          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-PopOS-x64.AppImage
+          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-CachyOS-x64.AppImage
+          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-Batocera-x64.AppImage
+          chmod +x artifacts/*.AppImage
+      - name: Launch every Linux-family package
+        run: |
+          for app in \
+            artifacts/AutoEmulatorUpdate-linux-x64.AppImage \
+            artifacts/AutoEmulatorUpdate-SteamOS-x64.AppImage \
+            artifacts/AutoEmulatorUpdate-PopOS-x64.AppImage \
+            artifacts/AutoEmulatorUpdate-CachyOS-x64.AppImage \
+            artifacts/AutoEmulatorUpdate-Batocera-x64.AppImage; do
+            echo "Smoke testing $app"
+            APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "$app" --smoke-test
+          done
+
+  macos-dmg:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-x64
+            runner: macos-15-intel
+          - rid: osx-arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish macOS
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/${{ matrix.rid }}
+      - name: Build DMG
+        run: |
+          chmod +x packaging/macos/build-dmg.sh
+          packaging/macos/build-dmg.sh ${{ matrix.rid }}
+      - name: Mount DMG and launch packaged app
+        run: |
+          DMG="$(find artifacts -maxdepth 1 -name "*-${{ matrix.rid }}.dmg" -print -quit)"
+          test -n "$DMG"
+          MOUNT="$RUNNER_TEMP/aeu-dmg-${{ matrix.rid }}"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT"
+          trap 'hdiutil detach "$MOUNT" || true' EXIT
+          EXE="$MOUNT/Auto Emulator Update.app/Contents/MacOS/AutoEmulatorUpdate.App"
+          test -x "$EXE"
+          "$EXE" --smoke-test
