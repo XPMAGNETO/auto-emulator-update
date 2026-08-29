@@ -37,7 +37,7 @@ jobs:
             throw "Windows installer version does not match VERSION ($version)"
           }
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-Windows-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -48,7 +48,7 @@ jobs:
       - name: Publish Windows x64
         shell: pwsh
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r win-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/win-x64
@@ -76,7 +76,7 @@ jobs:
       - name: Validate release version
         run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-Linux-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -86,7 +86,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish Linux x64
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r linux-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/linux-x64
@@ -134,7 +134,7 @@ jobs:
       - name: Validate release version
         run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-macOS-${{ matrix.rid }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -144,7 +144,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r ${{ matrix.rid }}
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/${{ matrix.rid }}
@@ -194,7 +194,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
-          name: Auto Emulator Update ${{ env.RELEASE_VERSION }}
+          name: Auto Emulator Updater ${{ env.RELEASE_VERSION }}
           prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
