@@ -9,7 +9,7 @@ APP="$ROOT/artifacts/Auto Emulator Updater.app"
 DMG="$ROOT/artifacts/AutoEmulatorUpdate-${VERSION}-${RID}.dmg"
 RW_DMG="$ROOT/artifacts/AutoEmulatorUpdate-${RID}.rw.dmg"
 MOUNT="$ROOT/artifacts/dmg-mount-${RID}"
-ICON_SOURCE="$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.ico"
+ICON_SOURCE="$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.png"
 ICONSET="$ROOT/artifacts/AutoEmulatorUpdater.iconset"
 ICNS="$APP/Contents/Resources/AutoEmulatorUpdater.icns"
 
@@ -22,18 +22,18 @@ find "$PUBLISH" -mindepth 1 -maxdepth 1 -exec mv {} "$APP/Contents/MacOS/" \;
 rmdir "$PUBLISH" || true
 chmod +x "$APP/Contents/MacOS/AutoEmulatorUpdate.App"
 
-# Build a native macOS .icns from the shared selected 8-bit launcher icon.
+# Build a native macOS .icns from the repository PNG. Using PNG here avoids
+# relying on sips to decode the Windows .ico container, which is unreliable on
+# hosted macOS runners.
 if [[ -f "$ICON_SOURCE" ]]; then
   mkdir -p "$ICONSET"
-  BASE_PNG="$ROOT/artifacts/AutoEmulatorUpdater-icon-base.png"
-  sips -s format png "$ICON_SOURCE" --out "$BASE_PNG" >/dev/null
   for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$BASE_PNG" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    sips -z "$size" "$size" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     double=$((size * 2))
-    sips -z "$double" "$double" "$BASE_PNG" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+    sips -z "$double" "$double" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
   done
   iconutil -c icns "$ICONSET" -o "$ICNS"
-  rm -rf "$ICONSET" "$BASE_PNG"
+  rm -rf "$ICONSET"
 fi
 
 cat > "$APP/Contents/Info.plist" <<EOF
