@@ -21,9 +21,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          parts=(.bootstrap/payload.part*)
-          test ${#parts[@]} -ge 12
+          parts=(
+            .bootstrap/payload.part00
+            .bootstrap/payload.part01
+            .bootstrap/payload.part02
+            .bootstrap/payload.part03
+            .bootstrap/payload.part04
+            .bootstrap/payload.part05
+            .bootstrap/payload.part06
+            .bootstrap/payload.part07
+            .bootstrap/payload.part08a
+            .bootstrap/payload.part08b
+            .bootstrap/payload.part08c0
+            .bootstrap/payload.part08c1
+            .bootstrap/payload.part08c2
+            .bootstrap/payload.part08c3
+            .bootstrap/payload.part09
+            .bootstrap/payload.part10
+            .bootstrap/payload.part11
+          )
+          for part in "${parts[@]}"; do test -f "$part"; done
           cat "${parts[@]}" | base64 -d > /tmp/project.zip
+          actual_sha="$(sha256sum /tmp/project.zip | awk '{print $1}')"
+          expected_sha="1231457a911f16b28952b8b2d0c06fd7b7e60256cc46d7d3e588d456856baf30"
+          test "$actual_sha" = "$expected_sha"
           unzip -t /tmp/project.zip
           tmp="$(mktemp -d)"
           unzip -q /tmp/project.zip -d "$tmp"
