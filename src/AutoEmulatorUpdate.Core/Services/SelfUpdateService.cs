@@ -90,7 +90,7 @@ public sealed class SelfUpdateService(HttpClient http)
         var destination = Path.Combine(root, Path.GetFileName(update.AssetName));
         var partial = destination + ".partial";
 
-        progress?.Report((0, $"Downloading Auto Emulator Update {update.Version}..."));
+        progress?.Report((0, $"Downloading Auto Emulator Updater {update.Version}..."));
         using (var req = new HttpRequestMessage(HttpMethod.Get, update.DownloadUrl))
         {
             req.Headers.UserAgent.ParseAdd("AutoEmulatorUpdate/10.1");
@@ -147,10 +147,33 @@ public sealed class SelfUpdateService(HttpClient http)
 
         if (OperatingSystem.IsWindows())
         {
+            var current = Environment.ProcessPath;
+            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
+            {
+                var helper = Path.Combine(Path.GetDirectoryName(update.FilePath)!, "apply-update.ps1");
+                var installer = EscapePowerShellSingleQuoted(update.FilePath);
+                var app = EscapePowerShellSingleQuoted(current);
+                var script = $"$ErrorActionPreference = 'Stop'\r\n" +
+                             $"$installer = '{installer}'\r\n" +
+                             $"$app = '{app}'\r\n" +
+                             "$args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS')\r\n" +
+                             "$p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru\r\n" +
+                             "if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath $app)) { Start-Sleep -Milliseconds 750; Start-Process -FilePath $app }\r\n" +
+                             "exit $p.ExitCode\r\n";
+                File.WriteAllText(helper, script);
+                return Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{helper}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }) ?? throw new InvalidOperationException("Windows could not start the update helper.");
+            }
+
             return Process.Start(new ProcessStartInfo
             {
                 FileName = update.FilePath,
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS",
                 UseShellExecute = true
             }) ?? throw new InvalidOperationException("Windows could not start the update installer.");
         }
@@ -184,6 +207,7 @@ public sealed class SelfUpdateService(HttpClient http)
     }
 
     private static string EscapeShell(string value) => value.Replace("'", "'\\''");
+    private static string EscapePowerShellSingleQuoted(string value) => value.Replace("'", "''");
 
     private static string[] DesiredAssetHints()
     {

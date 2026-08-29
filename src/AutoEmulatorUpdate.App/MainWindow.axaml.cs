@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform;
 using AutoEmulatorUpdate.Core.Models;
 using AutoEmulatorUpdate.Core.Services;
 
@@ -8,7 +9,23 @@ namespace AutoEmulatorUpdate.App;
 
 public partial class MainWindow : Window
 {
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                using var iconStream = AssetLoader.Open(new Uri("avares://AutoEmulatorUpdate.App/Assets/app-icon.ico"));
+                Icon = new WindowIcon(iconStream);
+            }
+            catch
+            {
+                // The executable still carries the Windows icon even if the runtime window icon cannot be loaded.
+            }
+        }
+    }
 
     private async void ReportProblem_Click(object? sender, RoutedEventArgs e)
     {

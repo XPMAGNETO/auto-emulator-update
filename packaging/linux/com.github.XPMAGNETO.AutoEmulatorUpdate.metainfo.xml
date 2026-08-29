@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.XPMAGNETO.AutoEmulatorUpdate</id>
+  <name>Auto Emulator Updater</name>
+  <summary>Keep emulator installations current</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Auto Emulator Updater discovers supported emulators and helps keep their installations current.</p>
+  </description>
+  <url type="homepage">https://github.com/XPMAGNETO/auto-emulator-update</url>
+  <launchable type="desktop-id">auto-emulator-update.desktop</launchable>
+</component>
