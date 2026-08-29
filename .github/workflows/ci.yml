@@ -20,3 +20,38 @@ jobs:
       - run: dotnet restore
       - run: dotnet build -c Release --no-restore
       - run: dotnet test -c Release --no-build
+
+      - name: Publish and launch Windows smoke build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o artifacts/smoke
+          & .\artifacts\smoke\AutoEmulatorUpdate.App.exe --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "Windows startup smoke test failed with exit code $LASTEXITCODE" }
+
+      - name: Install Linux GUI smoke-test dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-6 libice6 libsm6 libfontconfig1
+
+      - name: Publish and launch Linux smoke build
+        if: runner.os == 'Linux'
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/smoke
+          chmod +x artifacts/smoke/AutoEmulatorUpdate.App
+          xvfb-run -a ./artifacts/smoke/AutoEmulatorUpdate.App --smoke-test
+
+      - name: Publish and launch macOS smoke build
+        if: runner.os == 'macOS'
+        run: |
+          if [[ "$(uname -m)" == "arm64" ]]; then RID=osx-arm64; else RID=osx-x64; fi
+          dotnet publish src/AutoEmulatorUpdate.App -c Release -r "$RID" --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o artifacts/smoke
+          chmod +x artifacts/smoke/AutoEmulatorUpdate.App
+          ./artifacts/smoke/AutoEmulatorUpdate.App --smoke-test
