@@ -12,7 +12,7 @@ DefaultDirName={autopf}\Auto Emulator Updater
 DefaultGroupName=Auto Emulator Updater
 DisableProgramGroupPage=yes
 OutputBaseFilename=AutoEmulatorUpdate-Setup
-SetupIconFile=..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.ico
+SetupIconFile=..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible arm64
@@ -23,7 +23,7 @@ WizardStyle=modern
 
 [Files]
 Source: "..\..\artifacts\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.ico"; DestDir: "{app}"; DestName: "app-icon.ico"; Flags: ignoreversion
+Source: "..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico"; DestDir: "{app}"; DestName: "app-icon.ico"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon.ico"; IconIndex: 0
