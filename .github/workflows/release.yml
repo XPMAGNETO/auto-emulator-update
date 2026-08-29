@@ -5,13 +5,13 @@ on:
     tags:
       - 'v*'
     branches:
-      - 'release-v10.1.0-alpha.4'
+      - 'release-v10.1.0-alpha.5'
 
 permissions:
   contents: write
 
 env:
-  RELEASE_VERSION: v10.1.0-alpha.4
+  RELEASE_VERSION: v10.1.0-alpha.5
 
 jobs:
   windows:
@@ -68,7 +68,11 @@ jobs:
           cp "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Linux-x64.AppImage" "artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Batocera-x64.AppImage"
           for f in artifacts/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-*.AppImage; do sha256sum "$f" > "$f.sha256"; done
       - name: Build DEB
-        run: packaging/linux/build-deb.sh linux-x64 || true
+        run: packaging/linux/build-deb.sh linux-x64
+      - name: Verify DEB release version
+        run: |
+          test -f "artifacts/AutoEmulatorUpdate-10.1.0-alpha.5-linux-x64.deb"
+          test "$(dpkg-deb -f artifacts/AutoEmulatorUpdate-10.1.0-alpha.5-linux-x64.deb Version)" = "10.1.0"
       - uses: actions/upload-artifact@v4
         with:
           name: linux-packages
@@ -121,12 +125,12 @@ jobs:
           python - <<'PY'
           import json, glob, os
           files = sorted(os.path.basename(x) for x in glob.glob('release-assets/*'))
-          json.dump({"version":"v10.1.0-alpha.4","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
+          json.dump({"version":"v10.1.0-alpha.5","assets":files}, open("release-assets/update-manifest.json","w"), indent=2)
           PY
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v10.1.0-alpha.4
-          name: Auto Emulator Update v10.1.0-alpha.4
+          tag_name: v10.1.0-alpha.5
+          name: Auto Emulator Update v10.1.0-alpha.5
           prerelease: true
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
