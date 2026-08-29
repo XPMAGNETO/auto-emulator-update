@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.bootstrap/payload.zip'
+      - '.bootstrap/**'
       - '.github/workflows/bootstrap-project.yml'
   workflow_dispatch:
 
