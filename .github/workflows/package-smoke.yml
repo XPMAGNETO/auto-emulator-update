@@ -31,7 +31,7 @@ env:
 
 jobs:
   windows-installer:
-    timeout-minutes: 25
+    timeout-minutes: 30
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -60,7 +60,7 @@ jobs:
         shell: pwsh
         run: |
           $installer = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
-          $installDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Update Smoke"
+          $installDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Updater Smoke"
           $setup = Start-Process -FilePath $installer -ArgumentList @(
             "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=`"$installDir`""
           ) -Wait -PassThru
@@ -69,6 +69,34 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Installed executable was not found at $exe" }
           $app = Start-Process -FilePath $exe -ArgumentList "--first-run-smoke-test" -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "Installed Windows app failed first-run startup test: $($app.ExitCode)" }
+      - name: Upgrade alpha.5 installation in place
+        shell: pwsh
+        run: |
+          $previousUrl = "https://github.com/XPMAGNETO/auto-emulator-update/releases/download/v10.1.0-alpha.5/AutoEmulatorUpdate-v10.1.0-alpha.5-Windows-Setup.exe"
+          $previousInstaller = Join-Path $env:RUNNER_TEMP "AutoEmulatorUpdate-alpha.5-Setup.exe"
+          Invoke-WebRequest -Uri $previousUrl -OutFile $previousInstaller
+          if (-not (Test-Path $previousInstaller)) { throw "Previous release installer download failed." }
+
+          $upgradeDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Updater Upgrade Smoke"
+          $oldSetup = Start-Process -FilePath $previousInstaller -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=`"$upgradeDir`""
+          ) -Wait -PassThru
+          if ($oldSetup.ExitCode -ne 0) { throw "alpha.5 install failed with exit code $($oldSetup.ExitCode)" }
+
+          $exe = Join-Path $upgradeDir "AutoEmulatorUpdate.App.exe"
+          if (-not (Test-Path $exe)) { throw "alpha.5 executable was not found at $exe" }
+          $oldApp = Start-Process -FilePath $exe -ArgumentList "--first-run-smoke-test" -Wait -PassThru
+          if ($oldApp.ExitCode -ne 0) { throw "alpha.5 app did not launch before upgrade: $($oldApp.ExitCode)" }
+
+          $currentInstaller = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
+          $upgrade = Start-Process -FilePath $currentInstaller -ArgumentList @(
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/SP-", "/DIR=`"$upgradeDir`""
+          ) -Wait -PassThru
+          if ($upgrade.ExitCode -ne 0) { throw "In-place upgrade failed with exit code $($upgrade.ExitCode)" }
+          if (-not (Test-Path $exe)) { throw "Executable disappeared after in-place upgrade." }
+
+          $upgradedApp = Start-Process -FilePath $exe -ArgumentList "--first-run-smoke-test" -Wait -PassThru
+          if ($upgradedApp.ExitCode -ne 0) { throw "Upgraded app failed startup test: $($upgradedApp.ExitCode)" }
 
   linux-appimage:
     timeout-minutes: 20
