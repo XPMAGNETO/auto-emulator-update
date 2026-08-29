@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-Windows-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -47,7 +47,7 @@ jobs:
       - name: Publish Windows x64
         shell: pwsh
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r win-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/win-x64
@@ -76,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-Linux-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -90,7 +90,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends xvfb fuse file libx11-6 libice6 libsm6 libfontconfig1
       - name: Publish Linux x64
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r linux-x64
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/linux-x64
@@ -126,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: nuget-macOS-${{ matrix.rid }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
@@ -136,7 +136,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish macOS
         run: |
-          dotnet restore
+          dotnet restore src/AutoEmulatorUpdate.App -r ${{ matrix.rid }}
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
             --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/${{ matrix.rid }}
