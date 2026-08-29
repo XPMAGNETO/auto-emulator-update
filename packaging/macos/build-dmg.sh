@@ -46,7 +46,9 @@ IMAGE_MB=$((APP_MB + 512))
 if (( IMAGE_MB < 1024 )); then IMAGE_MB=1024; fi
 
 mkdir -p "$MOUNT"
-hdiutil create -size "${IMAGE_MB}m" -fs HFS+ -volname "Auto Emulator Update" -format UDRW "$RW_DMG"
+# For a blank image, hdiutil create defaults to a writable image; specifying
+# -format without a source folder/device is rejected on newer macOS runners.
+hdiutil create -size "${IMAGE_MB}m" -fs HFS+ -volname "Auto Emulator Update" "$RW_DMG"
 hdiutil attach "$RW_DMG" -nobrowse -mountpoint "$MOUNT"
 cleanup() {
   hdiutil detach "$MOUNT" >/dev/null 2>&1 || true
