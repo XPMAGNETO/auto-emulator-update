@@ -1,8 +1,6 @@
 name: Package Smoke Tests
 
 on:
-  push:
-    branches: [ ci/package-smoke-tests ]
   pull_request:
   workflow_dispatch:
 
@@ -30,18 +28,18 @@ jobs:
         run: |
           $installer = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
           $installDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Update Smoke"
-          $process = Start-Process -FilePath $installer -ArgumentList @(
+          $setup = Start-Process -FilePath $installer -ArgumentList @(
             "/VERYSILENT",
             "/SUPPRESSMSGBOXES",
             "/NORESTART",
             "/SP-",
             "/DIR=`"$installDir`""
           ) -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "Installer failed with exit code $($process.ExitCode)" }
+          if ($setup.ExitCode -ne 0) { throw "Installer failed with exit code $($setup.ExitCode)" }
           $exe = Join-Path $installDir "AutoEmulatorUpdate.App.exe"
           if (-not (Test-Path $exe)) { throw "Installed executable was not found at $exe" }
-          & $exe --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "Installed Windows app failed startup smoke test: $LASTEXITCODE" }
+          $app = Start-Process -FilePath $exe -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw "Installed Windows app failed startup smoke test: $($app.ExitCode)" }
 
   linux-appimages:
     runs-on: ubuntu-latest
