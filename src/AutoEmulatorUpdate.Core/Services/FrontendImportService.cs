@@ -24,11 +24,23 @@ public sealed class FrontendImportService(PlatformService platform)
                 new("Nostlan", Path.Combine(app, "Nostlan")),
                 new("Steam ROM Manager", Path.Combine(app, "steam-rom-manager"))
             ]);
-            foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+
+            // RetroBat is portable and can live on SSD/HDD/USB storage, so scan
+            // both fixed and removable drives instead of assuming C:\RetroBat.
+            foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady &&
+                         (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
             {
                 foreach (var name in new[] { "LaunchBox", "RetroBat", "ES-DE", "Pegasus", "RetroFE", "HyperSpin", "RocketLauncher", "GameEx", "mGalaxy", "CoinOPS" })
                     candidates.Add(new(name, Path.Combine(d.RootDirectory.FullName, name)));
             }
+        }
+        else if (platform.IsBatocera)
+        {
+            // Batocera itself owns the bundled emulator stack. We surface its
+            // configuration root for visibility, but Auto Emulator Update only
+            // discovers/manages standalone emulators under writable /userdata
+            // paths from PlatformService.DefaultSearchRoots().
+            candidates.Add(new("Batocera", "/userdata/system/configs"));
         }
         else
         {
@@ -56,6 +68,11 @@ public sealed class FrontendImportService(PlatformService platform)
         foreach (var root in roots)
         {
             ct.ThrowIfCancellationRequested();
+
+            // Do not import Batocera's built-in emulator executables for direct
+            // replacement: Batocera updates those through its own updater.
+            if (platform.IsBatocera && root.Name.Equals("Batocera", StringComparison.OrdinalIgnoreCase))
+                continue;
 
             var launchboxXml = Path.Combine(root.Path, "Data", "Emulators.xml");
             if (File.Exists(launchboxXml))

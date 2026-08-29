@@ -28,4 +28,16 @@ public sealed class EasyModeTests
         Assert.DoesNotContain("HttpRequestException", result.Message);
         Assert.Contains("HttpRequestException", result.TechnicalDetails);
     }
+
+    [Theory]
+    [InlineData("ID=steamos\nNAME=SteamOS", "steamos")]
+    [InlineData("ID=pop\nNAME=Pop!_OS", "pop")]
+    [InlineData("ID=cachyos\nNAME=CachyOS", "cachyos")]
+    [InlineData("ID=batocera\nNAME=Batocera.linux", "batocera")]
+    [InlineData("ID=ubuntu\nNAME=Ubuntu", "ubuntu")]
+    public void Linux_Distribution_Detection_Is_Stable(string osRelease, string expected)
+    {
+        var actual = PlatformService.IdentifyLinuxDistribution(osRelease.Split('\n'));
+        Assert.Equal(expected, actual);
+    }
 }

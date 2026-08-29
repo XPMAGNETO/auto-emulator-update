@@ -4,24 +4,36 @@ namespace AutoEmulatorUpdate.Core.Services;
 
 public sealed class PlatformService
 {
-    private readonly Lazy<bool> _isSteamOs = new(DetectSteamOs);
+    private readonly Lazy<string> _linuxDistribution = new(DetectLinuxDistribution);
+    private readonly Lazy<bool> _hasRetroBat = new(DetectRetroBat);
 
-    public bool IsSteamOS => OperatingSystem.IsLinux() && _isSteamOs.Value;
+    public string LinuxDistribution => OperatingSystem.IsLinux() ? _linuxDistribution.Value : "";
+    public bool IsSteamOS => LinuxDistribution == "steamos";
+    public bool IsPopOS => LinuxDistribution == "pop";
+    public bool IsCachyOS => LinuxDistribution == "cachyos";
+    public bool IsBatocera => LinuxDistribution == "batocera";
+    public bool HasRetroBat => OperatingSystem.IsWindows() && _hasRetroBat.Value;
 
-    // SteamOS uses Linux emulator packages/manifests, while still being exposed
-    // as a distinct platform to the UI and platform-specific behavior.
+    // All supported Linux distributions consume Linux emulator manifests/assets.
+    // RuntimeId remains distribution-specific so diagnostics and UI can distinguish them.
     public string Os =>
         OperatingSystem.IsWindows() ? "windows" :
         OperatingSystem.IsMacOS() ? "macos" :
         OperatingSystem.IsLinux() ? "linux" : "unknown";
 
-    public string PlatformName => IsSteamOS ? "SteamOS" : Os switch
-    {
-        "windows" => "Windows",
-        "macos" => "macOS",
-        "linux" => "Linux",
-        _ => "Unknown"
-    };
+    public string PlatformName =>
+        HasRetroBat ? "Windows + RetroBat" :
+        IsSteamOS ? "SteamOS" :
+        IsPopOS ? "Pop!_OS" :
+        IsCachyOS ? "CachyOS" :
+        IsBatocera ? "Batocera" :
+        Os switch
+        {
+            "windows" => "Windows",
+            "macos" => "macOS",
+            "linux" => "Linux",
+            _ => "Unknown"
+        };
 
     public string Arch => RuntimeInformation.OSArchitecture switch
     {
@@ -32,14 +44,27 @@ public sealed class PlatformService
         _ => RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant()
     };
 
-    public string RuntimeId => IsSteamOS ? $"steamos-{Arch}" : $"{Os}-{Arch}";
+    public string RuntimeId => LinuxDistribution switch
+    {
+        "steamos" => $"steamos-{Arch}",
+        "pop" => $"popos-{Arch}",
+        "cachyos" => $"cachyos-{Arch}",
+        "batocera" => $"batocera-{Arch}",
+        _ when HasRetroBat => $"retrobat-windows-{Arch}",
+        _ => $"{Os}-{Arch}"
+    };
+
+    // Batocera owns and updates its built-in emulator stack. Auto Emulator Update
+    // should only manage standalone/user-installed emulators stored under /userdata.
+    public bool SystemOwnsBuiltInEmulators => IsBatocera;
 
     public IEnumerable<string> DefaultSearchRoots()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (OperatingSystem.IsWindows())
         {
-            foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+            foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady &&
+                         (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
             {
                 foreach (var sub in new[] { "Emulators", "Emulator", "Games", @"LaunchBox\Emulators", "RetroBat", "ES-DE" })
                     yield return Path.Combine(drive.RootDirectory.FullName, sub);
@@ -51,19 +76,26 @@ public sealed class PlatformService
             yield return Path.Combine(home, "Applications");
             yield return Path.Combine(home, "Emulators");
         }
+        else if (IsBatocera)
+        {
+            // Batocera's system image owns the bundled emulator binaries. Restrict
+            // discovery to writable userdata so we never replace system-managed files.
+            yield return "/userdata/system/auto-emulator-update/emulators";
+            yield return "/userdata/system/emulators";
+            yield return "/userdata/system/apps";
+            yield return "/userdata/system/configs";
+            yield return "/userdata/saves/flatpak";
+        }
         else
         {
             yield return Path.Combine(home, "Applications");
             yield return Path.Combine(home, "Emulators");
             yield return Path.Combine(home, ".local", "bin");
+            yield return Path.Combine(home, ".local", "share", "flatpak", "exports", "bin");
+            yield return "/var/lib/flatpak/exports/bin";
 
             if (IsSteamOS)
             {
-                // SteamOS keeps user-installed software on writable storage.
-                // Prefer user/AppImage/Flatpak locations and removable storage;
-                // never require disabling the SteamOS read-only system image.
-                yield return Path.Combine(home, ".local", "share", "flatpak", "exports", "bin");
-                yield return "/var/lib/flatpak/exports/bin";
                 yield return Path.Combine(home, ".var", "app");
                 yield return "/run/media";
                 yield return "/run/media/deck";
@@ -82,14 +114,11 @@ public sealed class PlatformService
         return true;
     }
 
-    private static bool DetectSteamOs()
+    public static string IdentifyLinuxDistribution(IEnumerable<string> osReleaseLines)
     {
         try
         {
-            const string osRelease = "/etc/os-release";
-            if (!File.Exists(osRelease)) return false;
-
-            var values = File.ReadLines(osRelease)
+            var values = osReleaseLines
                 .Select(line => line.Split('=', 2))
                 .Where(parts => parts.Length == 2)
                 .ToDictionary(
@@ -97,20 +126,66 @@ public sealed class PlatformService
                     parts => parts[1].Trim().Trim('"'),
                     StringComparer.OrdinalIgnoreCase);
 
-            if (values.TryGetValue("ID", out var id) &&
-                id.Equals("steamos", StringComparison.OrdinalIgnoreCase))
-                return true;
+            values.TryGetValue("ID", out var id);
+            values.TryGetValue("NAME", out var name);
+            values.TryGetValue("VARIANT_ID", out var variant);
+            values.TryGetValue("ID_LIKE", out var idLike);
 
-            if (values.TryGetValue("NAME", out var name) &&
-                name.Contains("SteamOS", StringComparison.OrdinalIgnoreCase))
-                return true;
+            var all = string.Join(' ', new[] { id, name, variant, idLike }.Where(x => !string.IsNullOrWhiteSpace(x))).ToLowerInvariant();
 
-            return values.TryGetValue("VARIANT_ID", out var variant) &&
-                   variant.Contains("steam", StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(id, "steamos", StringComparison.OrdinalIgnoreCase) || all.Contains("steamos"))
+                return "steamos";
+            if (string.Equals(id, "pop", StringComparison.OrdinalIgnoreCase) || all.Contains("pop!_os") || all.Contains("pop os"))
+                return "pop";
+            if (string.Equals(id, "cachyos", StringComparison.OrdinalIgnoreCase) || all.Contains("cachyos"))
+                return "cachyos";
+            if (string.Equals(id, "batocera", StringComparison.OrdinalIgnoreCase) || all.Contains("batocera"))
+                return "batocera";
+
+            return string.IsNullOrWhiteSpace(id) ? "linux" : id.ToLowerInvariant();
         }
         catch
         {
-            return false;
+            return "linux";
         }
+    }
+
+    private static string DetectLinuxDistribution()
+    {
+        try
+        {
+            const string osRelease = "/etc/os-release";
+            if (File.Exists(osRelease))
+            {
+                var distro = IdentifyLinuxDistribution(File.ReadLines(osRelease));
+                if (distro != "linux") return distro;
+            }
+
+            // Batocera provides its own update utilities. This fallback helps on
+            // images where /etc/os-release is unusually minimal.
+            if (File.Exists("/usr/bin/batocera-check-updates") || File.Exists("/usr/bin/batocera-upgrade"))
+                return "batocera";
+        }
+        catch { }
+
+        return "linux";
+    }
+
+    private static bool DetectRetroBat()
+    {
+        try
+        {
+            foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady &&
+                         (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Removable)))
+            {
+                var root = Path.Combine(drive.RootDirectory.FullName, "RetroBat");
+                if (File.Exists(Path.Combine(root, "retrobat.exe")) ||
+                    File.Exists(Path.Combine(root, "RetroBat.exe")) ||
+                    Directory.Exists(Path.Combine(root, "emulators")))
+                    return true;
+            }
+        }
+        catch { }
+        return false;
     }
 }
