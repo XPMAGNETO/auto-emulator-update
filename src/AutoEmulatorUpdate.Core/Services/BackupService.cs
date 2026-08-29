@@ -36,10 +36,15 @@ public sealed class BackupService(AppPaths paths)
     public void Cleanup(int retentionDays, double maxGb)
     {
         var cutoff = DateTime.UtcNow.AddDays(-Math.Max(1, retentionDays));
-        foreach (var dir in Directory.Exists(paths.BackupsRoot) ? Directory.EnumerateDirectories(paths.BackupsRoot, "*", SearchOption.AllDirectories).OrderByDescending(x => x.Length) : [])
+        IEnumerable<string> backupDirectories = Directory.Exists(paths.BackupsRoot)
+            ? Directory.EnumerateDirectories(paths.BackupsRoot, "*", SearchOption.AllDirectories).OrderByDescending(x => x.Length)
+            : Enumerable.Empty<string>();
+
+        foreach (var dir in backupDirectories)
         {
             try { if (Directory.GetLastWriteTimeUtc(dir) < cutoff) Directory.Delete(dir, true); } catch { }
         }
+
         var max = (long)(Math.Max(1, maxGb) * 1024 * 1024 * 1024);
         while (DirectorySize(paths.BackupsRoot) > max)
         {
