@@ -32,7 +32,27 @@ public partial class App : Application
         try
         {
             var store = new JsonStore();
-            var settings = await store.LoadAsync(paths.SettingsFile, new AppSettings());
+            AppSettings settings;
+
+            if (Program.SmokeTestMode)
+            {
+                // Use an isolated, deterministic startup configuration for CI/package tests.
+                // This still loads the real Avalonia application, XAML, manifests and main window,
+                // but avoids network scans and the interactive first-run wizard.
+                settings = new AppSettings
+                {
+                    FirstRunCompleted = true,
+                    StartupBehavior = StartupBehavior.Manual,
+                    AutoAppUpdates = false,
+                    BackgroundMode = false,
+                    NotificationsEnabled = false
+                };
+                await store.SaveAsync(paths.SettingsFile, settings);
+            }
+            else
+            {
+                settings = await store.LoadAsync(paths.SettingsFile, new AppSettings());
+            }
 
             if (!settings.FirstRunCompleted)
             {
@@ -65,6 +85,14 @@ public partial class App : Application
             main.Show();
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             await vm.InitializeAsync();
+
+            if (Program.SmokeTestMode)
+            {
+                // Give Avalonia a moment to create/render the top-level window before exiting.
+                await Task.Delay(750);
+                await log.WriteAsync("SMOKE TEST PASSED: main window loaded successfully.");
+                desktop.Shutdown(0);
+            }
         }
         catch (Exception ex)
         {
@@ -75,6 +103,13 @@ public partial class App : Application
             catch
             {
                 // Never hide the original startup failure because logging also failed.
+            }
+
+            if (Program.SmokeTestMode)
+            {
+                Console.Error.WriteLine(ex);
+                desktop.Shutdown(1);
+                return;
             }
 
             var errorWindow = new Window
