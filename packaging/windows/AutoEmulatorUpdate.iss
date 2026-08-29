@@ -1,5 +1,5 @@
 #define MyAppName "Auto Emulator Updater"
-#define MyAppVersion "10.1.0-alpha.7"
+#define MyAppVersion "10.1.0-alpha.8"
 #define MyAppPublisher "Auto Emulator Updater"
 #define MyAppExeName "AutoEmulatorUpdate.App.exe"
 
@@ -12,20 +12,22 @@ DefaultDirName={autopf}\Auto Emulator Updater
 DefaultGroupName=Auto Emulator Updater
 DisableProgramGroupPage=yes
 OutputBaseFilename=AutoEmulatorUpdate-Setup
+SetupIconFile=..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible arm64
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\app-icon.ico
 WizardStyle=modern
 
 [Files]
 Source: "..\..\artifacts\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico"; DestDir: "{app}"; DestName: "app-icon.ico"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; IconIndex: 0
-Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; IconIndex: 0; Tasks: desktopicon
+Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon.ico"; IconIndex: 0
+Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon.ico"; IconIndex: 0; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"

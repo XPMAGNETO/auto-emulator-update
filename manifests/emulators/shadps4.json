@@ -20,7 +20,7 @@
     {
       "Os": "windows",
       "Arch": "x64",
-      "AssetPattern": "shadps4-win64-qt-*.zip"
+      "AssetPattern": "shadps4-win64-sdl-*.zip"
     }
   ],
   "Sources": [
