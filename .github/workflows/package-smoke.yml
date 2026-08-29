@@ -2,21 +2,54 @@ name: Package Smoke Tests
 
 on:
   pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'manifests/**'
+      - 'packaging/**'
+      - 'VERSION'
+      - '*.sln'
+      - '*.slnx'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - '.github/workflows/package-smoke.yml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
   windows-installer:
+    timeout-minutes: 25
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-Windows-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-Windows-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish Windows x64
         shell: pwsh
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r win-x64 --self-contained true `
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -o artifacts/win-x64
       - name: Build Windows installer
         shell: pwsh
@@ -29,11 +62,7 @@ jobs:
           $installer = (Resolve-Path "packaging/windows/Output/AutoEmulatorUpdate-Setup.exe").Path
           $installDir = Join-Path $env:RUNNER_TEMP "Auto Emulator Update Smoke"
           $setup = Start-Process -FilePath $installer -ArgumentList @(
-            "/VERYSILENT",
-            "/SUPPRESSMSGBOXES",
-            "/NORESTART",
-            "/SP-",
-            "/DIR=`"$installDir`""
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=`"$installDir`""
           ) -Wait -PassThru
           if ($setup.ExitCode -ne 0) { throw "Installer failed with exit code $($setup.ExitCode)" }
           $exe = Join-Path $installDir "AutoEmulatorUpdate.App.exe"
@@ -41,45 +70,50 @@ jobs:
           $app = Start-Process -FilePath $exe -ArgumentList "--first-run-smoke-test" -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "Installed Windows app failed first-run startup test: $($app.ExitCode)" }
 
-  linux-appimages:
+  linux-appimage:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-Linux-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-Linux-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Install GUI/AppImage dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb fuse file libx11-6 libice6 libsm6 libfontconfig1
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends xvfb fuse file libx11-6 libice6 libsm6 libfontconfig1
       - name: Publish Linux x64
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r linux-x64 --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/linux-x64
-      - name: Build AppImage
+      - name: Build AppImage family
         run: |
-          curl -L -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          curl -fsSL -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool packaging/linux/build-appimage.sh
           APPIMAGETOOL="$PWD/appimagetool" packaging/linux/build-appimage.sh linux-x64
-          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-SteamOS-x64.AppImage
-          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-PopOS-x64.AppImage
-          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-CachyOS-x64.AppImage
-          cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage artifacts/AutoEmulatorUpdate-Batocera-x64.AppImage
-          chmod +x artifacts/*.AppImage
-      - name: Launch every Linux-family package
-        run: |
-          for app in \
-            artifacts/AutoEmulatorUpdate-linux-x64.AppImage \
-            artifacts/AutoEmulatorUpdate-SteamOS-x64.AppImage \
-            artifacts/AutoEmulatorUpdate-PopOS-x64.AppImage \
-            artifacts/AutoEmulatorUpdate-CachyOS-x64.AppImage \
-            artifacts/AutoEmulatorUpdate-Batocera-x64.AppImage; do
-            echo "Smoke testing $app"
-            APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "$app" --smoke-test
+          for name in SteamOS PopOS CachyOS Batocera; do
+            cp artifacts/AutoEmulatorUpdate-linux-x64.AppImage "artifacts/AutoEmulatorUpdate-${name}-x64.AppImage"
           done
+          chmod +x artifacts/*.AppImage
+      - name: Verify Linux-family variants and launch base package
+        run: |
+          base=artifacts/AutoEmulatorUpdate-linux-x64.AppImage
+          for app in artifacts/AutoEmulatorUpdate-{SteamOS,PopOS,CachyOS,Batocera}-x64.AppImage; do
+            test -s "$app"
+            cmp --silent "$base" "$app"
+          done
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "$base" --smoke-test
 
   macos-dmg:
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -91,13 +125,20 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-macOS-${{ matrix.rid }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets', 'global.json', 'NuGet.config') }}
+          restore-keys: nuget-macOS-${{ matrix.rid }}-
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish macOS
         run: |
+          dotnet restore
           dotnet publish src/AutoEmulatorUpdate.App -c Release -r ${{ matrix.rid }} --self-contained true \
-            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            --no-restore -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -o artifacts/${{ matrix.rid }}
       - name: Build DMG
         run: |
