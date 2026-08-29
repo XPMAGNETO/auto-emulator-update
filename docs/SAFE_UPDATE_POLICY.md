@@ -1,0 +1,1 @@
+Auto Emulator Update should prefer user-writable, application-owned locations on appliance-style distributions and must not replace operating-system-managed emulator components without an explicit platform-safe rule.
