@@ -57,7 +57,6 @@ public sealed class FrontendImportService(PlatformService platform)
         {
             ct.ThrowIfCancellationRequested();
 
-            // LaunchBox gets a structured XML pass first.
             var launchboxXml = Path.Combine(root.Path, "Data", "Emulators.xml");
             if (File.Exists(launchboxXml))
             {
@@ -73,7 +72,6 @@ public sealed class FrontendImportService(PlatformService platform)
                 catch { }
             }
 
-            // Generic config scanner covers ES-DE, RetroBat, Pegasus, Playnite, Attract-Mode, etc.
             foreach (var file in EnumerateConfigs(root.Path, 5, 750))
             {
                 string text;
@@ -92,24 +90,43 @@ public sealed class FrontendImportService(PlatformService platform)
 
     private static IEnumerable<string> EnumerateConfigs(string root, int maxDepth, int maxFiles)
     {
-        var q = new Queue<(string,int)>(); q.Enqueue((root,0)); int count = 0;
-        var exts = new HashSet<string>(new[] { ".xml",".json",".cfg",".ini",".yaml",".yml",".txt",".conf",".config" }, StringComparer.OrdinalIgnoreCase);
-        while (q.Count > 0 && count < maxFiles)
+        var results = new List<string>();
+        var q = new Queue<(string path, int depth)>();
+        q.Enqueue((root, 0));
+        var exts = new HashSet<string>(new[] { ".xml", ".json", ".cfg", ".ini", ".yaml", ".yml", ".txt", ".conf", ".config" }, StringComparer.OrdinalIgnoreCase);
+
+        while (q.Count > 0 && results.Count < maxFiles)
         {
             var (dir, depth) = q.Dequeue();
+            string[] files;
+            string[] directories;
+
             try
             {
-                foreach (var f in Directory.EnumerateFiles(dir))
-                {
-                    if (count >= maxFiles) yield break;
-                    if (exts.Contains(Path.GetExtension(f)) && new FileInfo(f).Length < 5 * 1024 * 1024)
-                    { count++; yield return f; }
-                }
-                if (depth < maxDepth)
-                    foreach (var d in Directory.EnumerateDirectories(dir)) q.Enqueue((d, depth + 1));
+                files = Directory.GetFiles(dir);
+                directories = depth < maxDepth ? Directory.GetDirectories(dir) : [];
             }
-            catch { }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                if (results.Count >= maxFiles) break;
+                try
+                {
+                    if (exts.Contains(Path.GetExtension(file)) && new FileInfo(file).Length < 5 * 1024 * 1024)
+                        results.Add(file);
+                }
+                catch { }
+            }
+
+            foreach (var child in directories)
+                q.Enqueue((child, depth + 1));
         }
+
+        return results;
     }
 
     private string[] GetExes(EmulatorDefinition d)
