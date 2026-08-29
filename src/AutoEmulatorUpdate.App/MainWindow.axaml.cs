@@ -1,8 +1,77 @@
+using System.Diagnostics;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using AutoEmulatorUpdate.Core.Models;
+using AutoEmulatorUpdate.Core.Services;
 
 namespace AutoEmulatorUpdate.App;
 
 public partial class MainWindow : Window
 {
     public MainWindow() => InitializeComponent();
+
+    private async void ReportProblem_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var paths = new AppPaths();
+            var store = new JsonStore();
+            var settings = await store.LoadAsync(paths.SettingsFile, new AppSettings());
+            var installed = DataContext is MainWindowViewModel vm
+                ? vm.Installed.AsEnumerable()
+                : Enumerable.Empty<InstalledEmulator>();
+
+            var zip = await new DiagnosticService(paths).CreateBundleAsync(
+                settings,
+                installed,
+                "Diagnostic bundle created from the Report Problem button.");
+
+            if (DataContext is MainWindowViewModel viewModel)
+                viewModel.SettingsStatus = $"Diagnostic ZIP created: {zip}";
+
+            RevealFile(zip);
+
+            var title = Uri.EscapeDataString($"Bug report - Auto Emulator Update v{AutoEmulatorUpdate.Core.BuildInfo.Version}");
+            var body = Uri.EscapeDataString(
+                $"Auto Emulator Update version: {AutoEmulatorUpdate.Core.BuildInfo.Version}\n" +
+                $"Platform: {Environment.OSVersion}\n\n" +
+                "What happened?\nPlease describe what you were doing and what you expected to happen.\n\n" +
+                "Steps to reproduce:\n1. \n2. \n3. \n\n" +
+                "A sanitized diagnostic ZIP has been created on this computer. " +
+                "Please drag and drop that ZIP into this issue before submitting it.\n\n" +
+                "Privacy note: emulator install paths are omitted from the public diagnostic summary.");
+
+            var url = $"https://github.com/xpm69420/auto-emulator-update/issues/new?title={title}&body={body}";
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            if (DataContext is MainWindowViewModel vm)
+                vm.SettingsStatus = $"Could not prepare the bug report: {ex.Message}";
+        }
+    }
+
+    private static void RevealFile(string file)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{file}\"") { UseShellExecute = true });
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start(new ProcessStartInfo("open", $"-R \"{file}\"") { UseShellExecute = false });
+            }
+            else
+            {
+                var directory = Path.GetDirectoryName(file) ?? Environment.CurrentDirectory;
+                Process.Start(new ProcessStartInfo("xdg-open", $"\"{directory}\"") { UseShellExecute = false });
+            }
+        }
+        catch
+        {
+            // The report page still opens even if the platform file manager cannot reveal the ZIP.
+        }
+    }
 }
