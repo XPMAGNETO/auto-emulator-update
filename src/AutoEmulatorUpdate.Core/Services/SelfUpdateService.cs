@@ -153,10 +153,14 @@ public sealed class SelfUpdateService(HttpClient http)
                 var helper = Path.Combine(Path.GetDirectoryName(update.FilePath)!, "apply-update.ps1");
                 var installer = EscapePowerShellSingleQuoted(update.FilePath);
                 var app = EscapePowerShellSingleQuoted(current);
+                var pid = Environment.ProcessId;
                 var script = $"$ErrorActionPreference = 'Stop'\r\n" +
                              $"$installer = '{installer}'\r\n" +
                              $"$app = '{app}'\r\n" +
-                             "$args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CLOSEAPPLICATIONS')\r\n" +
+                             $"$pidToWaitFor = {pid}\r\n" +
+                             "$deadline = (Get-Date).AddSeconds(10)\r\n" +
+                             "while (Get-Process -Id $pidToWaitFor -ErrorAction SilentlyContinue) { if ((Get-Date) -ge $deadline) { Stop-Process -Id $pidToWaitFor -Force -ErrorAction SilentlyContinue; break }; Start-Sleep -Milliseconds 250 }\r\n" +
+                             "$args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOCLOSEAPPLICATIONS')\r\n" +
                              "$p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru\r\n" +
                              "if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath $app)) { Start-Sleep -Milliseconds 750; Start-Process -FilePath $app }\r\n" +
                              "exit $p.ExitCode\r\n";
@@ -173,7 +177,7 @@ public sealed class SelfUpdateService(HttpClient http)
             return Process.Start(new ProcessStartInfo
             {
                 FileName = update.FilePath,
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS",
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCLOSEAPPLICATIONS",
                 UseShellExecute = true
             }) ?? throw new InvalidOperationException("Windows could not start the update installer.");
         }
