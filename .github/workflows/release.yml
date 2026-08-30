@@ -193,6 +193,7 @@ jobs:
           PY
       - uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN }}
           tag_name: ${{ env.RELEASE_VERSION }}
           name: Auto Emulator Updater ${{ env.RELEASE_VERSION }}
           prerelease: true
