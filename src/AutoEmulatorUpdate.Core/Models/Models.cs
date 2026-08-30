@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 namespace AutoEmulatorUpdate.Core.Models;
 
 public enum UpdateChannel { Stable, Beta, Development }
@@ -39,26 +42,45 @@ public sealed class EmulatorDefinition
     public bool Legacy { get; init; }
 }
 
-public sealed class InstalledEmulator
+public sealed class InstalledEmulator : INotifyPropertyChanged
 {
+    private string _installPath = "";
+    private string? _executablePath;
+    private string _currentVersion = "Unknown";
+    private string _latestVersion = "Unknown";
+    private string _frontendOwner = "Manual / Scan";
+    private SourceHealthState _sourceHealth;
+    private string _sourceName = "";
+    private string _status = "Detected";
+    private bool _selected;
+
     public required EmulatorDefinition Definition { get; init; }
-    public required string InstallPath { get; set; }
-    public string? ExecutablePath { get; set; }
-    public string CurrentVersion { get; set; } = "Unknown";
-    public string LatestVersion { get; set; } = "Unknown";
+    public required string InstallPath { get => _installPath; set => Set(ref _installPath, value); }
+    public string? ExecutablePath { get => _executablePath; set => Set(ref _executablePath, value); }
+    public string CurrentVersion { get => _currentVersion; set => Set(ref _currentVersion, value); }
+    public string LatestVersion { get => _latestVersion; set => Set(ref _latestVersion, value); }
     public string DetectionMethod { get; set; } = "Unknown";
     public string Confidence { get; set; } = "Low";
-    public string FrontendOwner { get; set; } = "Manual / Scan";
+    public string FrontendOwner { get => _frontendOwner; set => Set(ref _frontendOwner, value); }
     public bool IsPortable { get; set; }
     public UpdateChannel Channel { get; set; } = UpdateChannel.Stable;
     public string? PinnedVersion { get; set; }
     public string? IgnoredVersion { get; set; }
     public ManagementOwner ManagementOwner { get; set; } = ManagementOwner.AutoEmulatorUpdate;
-    public SourceHealthState SourceHealth { get; set; }
-    public string SourceName { get; set; } = "";
-    public string Status { get; set; } = "Detected";
-    public bool Selected { get; set; }
+    public SourceHealthState SourceHealth { get => _sourceHealth; set => Set(ref _sourceHealth, value); }
+    public string SourceName { get => _sourceName; set => Set(ref _sourceName, value); }
+    public string Status { get => _status; set => Set(ref _status, value); }
+    public bool Selected { get => _selected; set => Set(ref _selected, value); }
     public string ProfileName { get; set; } = "Primary";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Set<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return;
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 public sealed record ReleaseInfo(

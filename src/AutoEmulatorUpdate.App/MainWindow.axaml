@@ -52,8 +52,27 @@
               </StackPanel>
             </Border>
 
+            <TextBlock Text="Emulator status overview" FontSize="20" FontWeight="SemiBold"/>
+            <TextBlock Text="This list shows exactly what was detected, what version is installed, what version is available, and whether action is needed."
+                       TextWrapping="Wrap" Opacity="0.7"/>
+            <DataGrid ItemsSource="{Binding StatusOverview}" AutoGenerateColumns="False" IsReadOnly="True" MinHeight="260" MaxHeight="420">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Emulator" Binding="{Binding Definition.Name}" Width="180"/>
+                <DataGridTextColumn Header="Installed version" Binding="{Binding CurrentVersion}" Width="145"/>
+                <DataGridTextColumn Header="Available version" Binding="{Binding LatestVersion}" Width="145"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="155"/>
+                <DataGridTextColumn Header="Update source" Binding="{Binding SourceName}" Width="150"/>
+                <DataGridTextColumn Header="Detected by" Binding="{Binding FrontendOwner}" Width="150"/>
+                <DataGridTextColumn Header="Install folder" Binding="{Binding InstallPath}" Width="*"/>
+              </DataGrid.Columns>
+            </DataGrid>
+
             <TextBlock Text="Recent activity" FontSize="20" FontWeight="SemiBold"/>
             <DataGrid ItemsSource="{Binding RecentHistory}" AutoGenerateColumns="True" IsReadOnly="True" Height="260"/>
+
+            <TextBlock Text="Activity log" FontSize="20" FontWeight="SemiBold"/>
+            <TextBox Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                     MinHeight="180" MaxHeight="320" VerticalScrollBarVisibility="Auto"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

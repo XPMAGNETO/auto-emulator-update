@@ -71,13 +71,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string NotInstalledHeader => $"Available to install ({FilteredNotInstalled.Count})";
     public int InstalledCount => Installed.Count;
     public int UpdatesAvailableCount => Installed.Count(x => x.Status == "Update available");
+    public int NeedsAttentionCount => Installed.Count(x => x.Status == "Needs attention");
+    public IEnumerable<InstalledEmulator> StatusOverview => Installed
+        .OrderByDescending(x => x.Status == "Update available")
+        .ThenByDescending(x => x.Status == "Needs attention")
+        .ThenBy(x => x.Definition.Name);
+    public string UpdatesAvailableNames => string.Join(", ", Installed
+        .Where(x => x.Status == "Update available")
+        .Select(x => x.Definition.Name)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x));
     public string LastCheckText { get; private set; } = "Not checked yet";
     public string HomeSummary => UpdatesAvailableCount switch
     {
         0 when Installed.Count == 0 => "No emulators have been detected yet. Scan your system or import your frontend configuration.",
-        0 => "Everything we've checked is up to date.",
-        1 => "1 emulator update is ready. Auto Emulator Update will back up the current version before installing it.",
-        _ => $"{UpdatesAvailableCount} emulator updates are ready. Backups and post-update validation are enabled."
+        0 when NeedsAttentionCount > 0 => $"{NeedsAttentionCount} emulator check(s) need attention. See the status overview below for names and details.",
+        0 => "Everything we've checked is up to date. See the status overview below for installed and latest versions.",
+        1 => $"Update ready for {UpdatesAvailableNames}. Auto Emulator Updater will back up the current version before installing it.",
+        _ => $"Updates ready for: {UpdatesAvailableNames}. Backups and post-update validation are enabled."
     };
 
     public Array MaintenanceModes => Enum.GetValues<MaintenanceMode>();
@@ -298,7 +309,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         await Task.WhenAll(tasks);
         LastCheckText = DateTime.Now.ToString("g");
-        StatusText = UpdatesAvailableCount == 0 ? "Everything checked is current." : $"{UpdatesAvailableCount} update(s) available.";
+        StatusText = UpdatesAvailableCount == 0
+            ? (NeedsAttentionCount == 0 ? "Everything checked is current." : $"Checks needing attention: {string.Join(", ", list.Where(x => x.Status == "Needs attention").Select(x => x.Definition.Name))}.")
+            : $"Updates available for: {UpdatesAvailableNames}.";
         Raise(nameof(LastCheckText)); RaiseHome();
         await _notifications.ShowAsync("Auto Emulator Update", StatusText);
     }
@@ -635,7 +648,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void RaiseHome()
     {
-        Raise(nameof(InstalledCount)); Raise(nameof(UpdatesAvailableCount)); Raise(nameof(HomeSummary)); Raise(nameof(InstalledHeader));
+        Raise(nameof(InstalledCount));
+        Raise(nameof(UpdatesAvailableCount));
+        Raise(nameof(NeedsAttentionCount));
+        Raise(nameof(UpdatesAvailableNames));
+        Raise(nameof(StatusOverview));
+        Raise(nameof(HomeSummary));
+        Raise(nameof(InstalledHeader));
     }
 
     private void Raise([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
