@@ -72,7 +72,7 @@
 
             <TextBlock Text="Activity log" FontSize="20" FontWeight="SemiBold"/>
             <TextBox Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                     MinHeight="180" MaxHeight="320" VerticalScrollBarVisibility="Auto"/>
+                     MinHeight="180" MaxHeight="320" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
