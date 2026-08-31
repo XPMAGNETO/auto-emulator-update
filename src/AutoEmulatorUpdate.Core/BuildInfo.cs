@@ -2,7 +2,7 @@ namespace AutoEmulatorUpdate.Core;
 
 public static class BuildInfo
 {
-    public const string Version = "10.1.0-alpha.9";
+    public const string Version = "10.1.0-alpha.10";
 
     // The GitHub setup script replaces OWNER with the authenticated GitHub user.
     // Release builds can then self-update from the repository's Releases feed.
