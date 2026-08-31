@@ -1,0 +1,54 @@
+name: Mobile Builds
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/AutoEmulatorUpdate.Mobile/**'
+      - 'src/AutoEmulatorUpdate.Mobile.Android/**'
+      - 'src/AutoEmulatorUpdate.Mobile.iOS/**'
+      - '.github/workflows/mobile.yml'
+      - 'Directory.Build.props'
+      - 'global.json'
+  pull_request:
+    paths:
+      - 'src/AutoEmulatorUpdate.Mobile/**'
+      - 'src/AutoEmulatorUpdate.Mobile.Android/**'
+      - 'src/AutoEmulatorUpdate.Mobile.iOS/**'
+      - '.github/workflows/mobile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Build Android companion
+        run: dotnet build src/AutoEmulatorUpdate.Mobile.Android -c Release
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install iOS workload
+        run: dotnet workload install ios
+      - name: Build iOS companion without signing
+        run: dotnet build src/AutoEmulatorUpdate.Mobile.iOS -c Release -p:CodesignKey=- -p:CodesignProvision=-

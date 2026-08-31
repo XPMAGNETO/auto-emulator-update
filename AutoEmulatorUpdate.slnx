@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="src/AutoEmulatorUpdate.Core/AutoEmulatorUpdate.Core.csproj" />
   <Project Path="src/AutoEmulatorUpdate.App/AutoEmulatorUpdate.App.csproj" />
+  <Project Path="src/AutoEmulatorUpdate.Mobile/AutoEmulatorUpdate.Mobile.csproj" />
   <Project Path="tests/AutoEmulatorUpdate.Tests/AutoEmulatorUpdate.Tests.csproj" />
 </Solution>
