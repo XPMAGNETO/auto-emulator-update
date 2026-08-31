@@ -15,6 +15,7 @@
   </Target>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\AutoEmulatorUpdate.Core\AutoEmulatorUpdate.Core.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
