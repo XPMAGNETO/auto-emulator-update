@@ -252,7 +252,7 @@ public sealed class SelfUpdateService(HttpClient http)
         return 0;
     }
 
-    internal static bool ShouldConsiderRelease(bool prerelease, string currentVersion) =>
+    public static bool ShouldConsiderRelease(bool prerelease, string currentVersion) =>
         !prerelease || currentVersion.Contains('-', StringComparison.Ordinal);
 
     private static (int[] Core, string[] Pre) ParseVersion(string value)
