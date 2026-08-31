@@ -191,6 +191,8 @@
                 <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding PairingCodeExpiry}" TextWrapping="Wrap" Opacity="0.7"/>
               </Grid>
             </Border>
+            <TextBlock Text="{Binding CompanionAddress}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding CompanionFingerprint}" FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
             <DataGrid ItemsSource="{Binding PairedDevices}" SelectedItem="{Binding SelectedPairedDevice}"
                       AutoGenerateColumns="True" IsReadOnly="True" MaxHeight="180"/>
             <Button Content="REVOKE SELECTED DEVICE" Command="{Binding RevokePairedDeviceCommand}" HorizontalAlignment="Left"/>

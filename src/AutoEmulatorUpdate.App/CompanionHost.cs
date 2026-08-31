@@ -31,6 +31,7 @@ public sealed class CompanionHost : IAsyncDisposable
         CompanionPairingService pairing,
         Func<CompanionSnapshot> snapshot,
         Func<string, Task<CompanionSnapshot>> command,
+        Action<CompanionDevice> devicePaired,
         int port = DefaultPort,
         CancellationToken cancellationToken = default)
     {
@@ -52,6 +53,7 @@ public sealed class CompanionHost : IAsyncDisposable
             try
             {
                 var paired = pairing.Pair(request.Code, request.DeviceName);
+                devicePaired(paired.Device);
                 return Results.Ok(new CompanionPairResponse(paired.AccessToken, snapshot()));
             }
             catch (UnauthorizedAccessException)

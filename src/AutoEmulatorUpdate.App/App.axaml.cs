@@ -77,6 +77,7 @@ public partial class App : Application
             var vm = new MainWindowViewModel(main);
             main.DataContext = vm;
             desktop.MainWindow = main;
+            main.Closed += async (_, _) => await vm.StopCompanionAsync();
 
             main.Show();
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
