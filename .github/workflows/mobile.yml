@@ -38,7 +38,14 @@ jobs:
       - name: Install Android workload
         run: dotnet workload install android
       - name: Build Android companion
-        run: dotnet build src/AutoEmulatorUpdate.Mobile.Android -c Release
+        run: dotnet publish src/AutoEmulatorUpdate.Mobile.Android -c Release -p:AndroidPackageFormats=apk
+      - name: Upload installable Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoEmulatorUpdater-Android
+          path: src/AutoEmulatorUpdate.Mobile.Android/bin/Release/net10.0-android/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
 
   ios:
     runs-on: macos-latest
@@ -52,3 +59,10 @@ jobs:
         run: dotnet workload install ios
       - name: Build iOS companion without signing
         run: dotnet build src/AutoEmulatorUpdate.Mobile.iOS -c Release -p:CodesignKey=- -p:CodesignProvision=-
+      - name: Upload unsigned iOS verification bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoEmulatorUpdater-iOS-Unsigned
+          path: src/AutoEmulatorUpdate.Mobile.iOS/bin/Release/net10.0-ios/**/*.app
+          if-no-files-found: error
+          retention-days: 14
