@@ -22,7 +22,7 @@
               <StackPanel Spacing="10">
                 <TextBlock Text="Pair with your computer" FontSize="20" FontWeight="SemiBold" />
                 <TextBlock Text="Enter the address and one-time code displayed by Auto Emulator Updater on your computer." TextWrapping="Wrap" />
-                <TextBox PlaceholderText="https://computer-address:45831" Text="{Binding DesktopAddress}" />
+                <TextBox PlaceholderText="Paste the complete desktop pairing address" Text="{Binding DesktopAddress}" />
                 <TextBox PlaceholderText="Pairing code" Text="{Binding PairingCode}" />
                 <Button Classes="primary accent" Content="Pair securely" Command="{Binding PairCommand}" />
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#D94B4B" TextWrapping="Wrap" IsVisible="{Binding HasError}" />

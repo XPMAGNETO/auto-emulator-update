@@ -695,7 +695,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 {
                     if (PairedDevices.All(x => x.Id != device.Id)) PairedDevices.Add(device);
                 }));
-            CompanionAddress = $"https://{GetCompanionHostAddress()}:{CompanionHost.DefaultPort}";
+            CompanionAddress = $"https://{GetCompanionHostAddress()}:{CompanionHost.DefaultPort}#{identity.Fingerprint}";
         }
 
         var pairing = _companionPairing.CreateCode();

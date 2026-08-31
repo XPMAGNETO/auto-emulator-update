@@ -1,17 +1,30 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace AutoEmulatorUpdate.Mobile;
 
-public sealed class CompanionClient(HttpClient httpClient)
+public sealed class CompanionClient : IDisposable
 {
+    private readonly HttpClient _httpClient;
     private Uri? _baseAddress;
     private string? _accessToken;
+    private byte[]? _certificatePin;
+
+    public CompanionClient()
+    {
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = ValidateCertificate
+        };
+        _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+    }
 
     public async Task<CompanionSnapshot> PairAsync(string address, string code, CancellationToken cancellationToken = default)
     {
-        _baseAddress = ValidateAddress(address);
-        var response = await httpClient.PostAsJsonAsync(
+        (_baseAddress, _certificatePin) = ValidatePairingAddress(address);
+        var response = await _httpClient.PostAsJsonAsync(
             new Uri(_baseAddress, "api/companion/pair"),
             new PairRequest(code.Trim(), Environment.MachineName),
             cancellationToken);
@@ -39,20 +52,36 @@ public sealed class CompanionClient(HttpClient httpClient)
         if (body is not null)
             request.Content = JsonContent.Create(body);
 
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<CompanionSnapshot>(cancellationToken)
             ?? throw new InvalidOperationException("The desktop returned an empty status response.");
     }
 
-    private static Uri ValidateAddress(string address)
-    {
-        if (!Uri.TryCreate(address.Trim().TrimEnd('/') + "/", UriKind.Absolute, out var uri))
-            throw new ArgumentException("Enter a valid computer address.");
+    public void Dispose() => _httpClient.Dispose();
 
-        var isLocalDevelopment = uri.IsLoopback && uri.Scheme == Uri.UriSchemeHttp;
-        if (uri.Scheme != Uri.UriSchemeHttps && !isLocalDevelopment)
+    private bool ValidateCertificate(HttpRequestMessage request, X509Certificate2? certificate,
+        X509Chain? chain, System.Net.Security.SslPolicyErrors errors)
+    {
+        if (certificate is null || _certificatePin is null) return false;
+        var actual = SHA256.HashData(certificate.RawData);
+        return actual.Length == _certificatePin.Length &&
+               CryptographicOperations.FixedTimeEquals(actual, _certificatePin);
+    }
+
+    private static (Uri Address, byte[] Pin) ValidatePairingAddress(string address)
+    {
+        if (!Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri))
+            throw new ArgumentException("Enter the complete pairing address shown by the desktop app.");
+
+        if (uri.Scheme != Uri.UriSchemeHttps)
             throw new ArgumentException("A secure HTTPS computer address is required.");
-        return uri;
+
+        var pinText = uri.Fragment.TrimStart('#');
+        if (pinText.Length != 64 || !pinText.All(Uri.IsHexDigit))
+            throw new ArgumentException("The pairing address is missing its certificate pin.");
+
+        var builder = new UriBuilder(uri) { Fragment = "", Path = "/" };
+        return (builder.Uri, Convert.FromHexString(pinText));
     }
 }

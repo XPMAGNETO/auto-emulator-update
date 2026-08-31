@@ -14,7 +14,7 @@ public partial class App : Application
         {
             mobile.MainView = new MainView
             {
-                DataContext = new MobileMainViewModel(new CompanionClient(new HttpClient()))
+                DataContext = new MobileMainViewModel(new CompanionClient())
             };
         }
 
