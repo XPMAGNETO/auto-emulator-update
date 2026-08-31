@@ -71,7 +71,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string NotInstalledHeader => $"Available to install ({FilteredNotInstalled.Count})";
     public int InstalledCount => Installed.Count;
     public int UpdatesAvailableCount => Installed.Count(x => x.Status == "Update available");
-    public int NeedsAttentionCount => Installed.Count(x => x.Status == "Needs attention");
+    public int NeedsAttentionCount => Installed.Count(x =>
+        x.Status is "Needs attention" or "Current version not reported");
     public IEnumerable<InstalledEmulator> StatusOverview => Installed
         .OrderByDescending(x => x.Status == "Update available")
         .ThenByDescending(x => x.Status == "Needs attention")
@@ -260,12 +261,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (def is null) continue;
             foreach (var exe in pair.Value)
             {
+                var (version, method, confidence) = await _discovery.DetectVersionAsync(exe, _cts.Token);
                 extras.Add(new InstalledEmulator
                 {
                     Definition = def,
                     InstallPath = Path.GetDirectoryName(exe)!,
                     ExecutablePath = exe,
                     FrontendOwner = "Imported frontend",
+                    CurrentVersion = version ?? "Not reported",
+                    DetectionMethod = method,
+                    Confidence = confidence,
                     Status = "Detected"
                 });
             }
@@ -294,6 +299,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() => StatusText = $"Checking {e.Definition.Name}...");
+                if (IsVersionUnknown(e.CurrentVersion) && !string.IsNullOrWhiteSpace(e.ExecutablePath) && File.Exists(e.ExecutablePath))
+                {
+                    var (version, method, confidence) = await _discovery.DetectVersionAsync(e.ExecutablePath, _cts.Token);
+                    e.CurrentVersion = version ?? "Not reported";
+                    e.DetectionMethod = method;
+                    e.Confidence = confidence;
+                }
                 var r = await _updates.CheckAsync(e, _cts.Token);
                 Append($"{e.Definition.Name}: {e.CurrentVersion} → {r.Version} ({e.Status})");
             }
@@ -310,7 +322,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         await Task.WhenAll(tasks);
         LastCheckText = DateTime.Now.ToString("g");
         StatusText = UpdatesAvailableCount == 0
-            ? (NeedsAttentionCount == 0 ? "Everything checked is current." : $"Checks needing attention: {string.Join(", ", list.Where(x => x.Status == "Needs attention").Select(x => x.Definition.Name))}.")
+            ? (NeedsAttentionCount == 0 ? "Everything checked is current." : $"Checks needing attention: {string.Join(", ", list.Where(x => x.Status is "Needs attention" or "Current version not reported").Select(x => x.Definition.Name))}.")
             : $"Updates available for: {UpdatesAvailableNames}.";
         Raise(nameof(LastCheckText)); RaiseHome();
         await _notifications.ShowAsync("Auto Emulator Update", StatusText);
@@ -638,6 +650,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _cts.Dispose();
         _cts = new CancellationTokenSource();
     }
+
+    private static bool IsVersionUnknown(string? value) =>
+        string.IsNullOrWhiteSpace(value) ||
+        value.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("Not reported", StringComparison.OrdinalIgnoreCase);
 
     private void Append(string message)
     {

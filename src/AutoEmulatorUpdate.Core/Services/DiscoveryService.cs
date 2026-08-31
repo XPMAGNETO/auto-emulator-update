@@ -190,14 +190,17 @@ public sealed class DiscoveryService(PlatformService platform, VersionService ve
         return [];
     }
 
-    private async Task<(string? version, string method, string confidence)> DetectVersionAsync(string exe, CancellationToken ct)
+    public async Task<(string? version, string method, string confidence)> DetectVersionAsync(string exe, CancellationToken ct = default)
     {
         if (OperatingSystem.IsWindows())
         {
             try
             {
                 var info = FileVersionInfo.GetVersionInfo(exe);
-                var v = versions.Extract(info.ProductVersion) ?? versions.Extract(info.FileVersion);
+                var v = versions.Extract(info.ProductVersion)
+                        ?? versions.Extract(info.FileVersion)
+                        ?? versions.Extract(info.Comments)
+                        ?? versions.Extract(info.FileDescription);
                 if (v is not null) return (v, "Executable metadata", "High");
             }
             catch { }
@@ -218,16 +221,65 @@ public sealed class DiscoveryService(PlatformService platform, VersionService ve
                 if (p is null) continue;
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeout.CancelAfter(TimeSpan.FromSeconds(2));
-                var stdout = await p.StandardOutput.ReadToEndAsync(timeout.Token);
-                var stderr = await p.StandardError.ReadToEndAsync(timeout.Token);
-                try { await p.WaitForExitAsync(timeout.Token); } catch { try { p.Kill(true); } catch { } }
+                var stdoutTask = p.StandardOutput.ReadToEndAsync(timeout.Token);
+                var stderrTask = p.StandardError.ReadToEndAsync(timeout.Token);
+                try
+                {
+                    await p.WaitForExitAsync(timeout.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    try { p.Kill(true); } catch { }
+                    try { await p.WaitForExitAsync(CancellationToken.None); } catch { }
+                }
+                catch (OperationCanceledException)
+                {
+                    try { p.Kill(true); } catch { }
+                    throw;
+                }
+                var stdout = await SafeOutputAsync(stdoutTask);
+                var stderr = await SafeOutputAsync(stderrTask);
                 var v = versions.Extract(stdout + "\n" + stderr);
                 if (v is not null) return (v, "Command line", "High");
             }
             catch { }
         }
 
+        var folder = Path.GetDirectoryName(exe);
+        if (folder is not null)
+        {
+            foreach (var name in new[] { "version.txt", "VERSION", "version", "build-version.txt", "build.txt" })
+            {
+                try
+                {
+                    var path = Path.Combine(folder, name);
+                    if (!File.Exists(path)) continue;
+                    var text = await File.ReadAllTextAsync(path, ct);
+                    var v = versions.Extract(text[..Math.Min(text.Length, 4096)]);
+                    if (v is not null) return (v, $"Version file ({name})", "High");
+                }
+                catch { }
+            }
+        }
+
+        var pathVersion = versions.Extract(Path.GetFileNameWithoutExtension(exe));
+        if (pathVersion is not null) return (pathVersion, "Executable filename", "Medium");
+
+        var parent = folder;
+        for (var depth = 0; depth < 3 && !string.IsNullOrWhiteSpace(parent); depth++)
+        {
+            var v = versions.Extract(Path.GetFileName(parent));
+            if (v is not null) return (v, "Install folder name", "Medium");
+            parent = Path.GetDirectoryName(parent);
+        }
+
         return (null, "Executable found", "Low");
+    }
+
+    private static async Task<string> SafeOutputAsync(Task<string> task)
+    {
+        try { return await task; }
+        catch { return string.Empty; }
     }
 
     private static bool DetectPortable(string folder) =>

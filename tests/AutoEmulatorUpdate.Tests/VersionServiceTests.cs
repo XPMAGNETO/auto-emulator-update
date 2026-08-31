@@ -25,3 +25,30 @@ public sealed class VersionServiceTests
     public void Extract_Works(string input, string expected)
         => Assert.Equal(expected, _sut.Extract(input));
 }
+
+public sealed class DiscoveryVersionTests
+{
+    [Fact]
+    public async Task DetectVersionAsync_UsesNearbyVersionFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "aeu-version-test", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var executable = Path.Combine(root, OperatingSystem.IsWindows() ? "sample.exe" : "sample");
+            await File.WriteAllTextAsync(executable, "not an executable");
+            await File.WriteAllTextAsync(Path.Combine(root, "version.txt"), "Sample Emulator v2.7.4");
+            var service = new DiscoveryService(new PlatformService(), new VersionService());
+
+            var result = await service.DetectVersionAsync(executable);
+
+            Assert.Equal("2.7.4", result.version);
+            Assert.Contains("Version file", result.method);
+            Assert.Equal("High", result.confidence);
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+}

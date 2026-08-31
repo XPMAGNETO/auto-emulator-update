@@ -22,11 +22,18 @@ public sealed class UpdateCoordinator(
         emulator.LatestVersion = release.Version;
         emulator.SourceName = release.Source;
         emulator.SourceHealth = SourceHealthState.Healthy;
-        emulator.Status = versions.Compare(emulator.CurrentVersion, release.Version) < 0 ? "Update available" : "Up to date";
+        emulator.Status = IsVersionUnknown(emulator.CurrentVersion)
+            ? "Current version not reported"
+            : versions.Compare(emulator.CurrentVersion, release.Version) < 0 ? "Update available" : "Up to date";
         if (!string.IsNullOrWhiteSpace(emulator.PinnedVersion)) emulator.Status = "Pinned";
         if (string.Equals(emulator.IgnoredVersion, release.Version, StringComparison.OrdinalIgnoreCase)) emulator.Status = "Ignored";
         return release;
     }
+
+    private static bool IsVersionUnknown(string? value) =>
+        string.IsNullOrWhiteSpace(value) ||
+        value.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("Not reported", StringComparison.OrdinalIgnoreCase);
 
     public async Task ProcessAsync(
         UpdateQueueItem item,
