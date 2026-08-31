@@ -18,16 +18,16 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible arm64
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-UninstallDisplayIcon={app}\app-icon.ico
+UninstallDisplayIcon={app}\app-icon-{#MyAppVersion}.ico
 WizardStyle=modern
 
 [Files]
 Source: "..\..\artifacts\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico"; DestDir: "{app}"; DestName: "app-icon.ico"; Flags: ignoreversion
+Source: "..\..\src\AutoEmulatorUpdate.App\Assets\app-icon.generated.ico"; DestDir: "{app}"; DestName: "app-icon-{#MyAppVersion}.ico"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon.ico"; IconIndex: 0
-Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon.ico"; IconIndex: 0; Tasks: desktopicon
+Name: "{autoprograms}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon-{#MyAppVersion}.ico"; IconIndex: 0
+Name: "{autodesktop}\Auto Emulator Updater"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app-icon-{#MyAppVersion}.ico"; IconIndex: 0; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
