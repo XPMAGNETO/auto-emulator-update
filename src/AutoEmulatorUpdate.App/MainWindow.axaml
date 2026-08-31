@@ -166,7 +166,7 @@
             <TextBlock Text="Automatic updates" FontSize="20" FontWeight="SemiBold"/>
             <ComboBox ItemsSource="{Binding MaintenanceModes}" SelectedItem="{Binding MaintenanceMode}"/>
             <CheckBox Content="Check for Auto Emulator Updater app updates automatically" IsChecked="{Binding AutoAppUpdates}"/>
-            <CheckBox Content="Keep running in the background when supported" IsChecked="{Binding BackgroundMode}"/>
+            <CheckBox Content="Allow background maintenance while the window is open (closing the window always exits)" IsChecked="{Binding BackgroundMode}"/>
 
             <Separator/>
             <TextBlock Text="Startup" FontSize="20" FontWeight="SemiBold"/>

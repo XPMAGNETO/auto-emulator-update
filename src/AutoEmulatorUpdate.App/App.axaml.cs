@@ -78,15 +78,6 @@ public partial class App : Application
             main.DataContext = vm;
             desktop.MainWindow = main;
 
-            if (settings.BackgroundMode)
-            {
-                main.Closing += (_, e) =>
-                {
-                    e.Cancel = true;
-                    main.Hide();
-                };
-            }
-
             main.Show();
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
             await vm.InitializeAsync();

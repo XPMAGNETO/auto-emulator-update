@@ -4,6 +4,7 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <StyleInclude Source="avares://AutoEmulatorUpdate.App/Styles/AppStyles.axaml" />
   </Application.Styles>
 </Application>
