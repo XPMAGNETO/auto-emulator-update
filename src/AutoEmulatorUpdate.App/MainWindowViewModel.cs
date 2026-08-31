@@ -33,6 +33,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly SelfUpdateService _selfUpdate;
     private readonly ISchedulerService _scheduler = new CrossPlatformSchedulerService();
     private readonly NotificationService _notifications = new();
+    private readonly CompanionPairingService _companionPairing = new();
     private AppSettings _settings = new();
     private IReadOnlyList<EmulatorDefinition> _definitions = [];
     private CancellationTokenSource _cts = new();
@@ -46,6 +47,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<HistoryEntry> RecentHistory { get; } = [];
     public ObservableCollection<FailureEntry> Failures { get; } = [];
     public ObservableCollection<BackupRecord> Backups { get; } = [];
+    public ObservableCollection<CompanionDevice> PairedDevices { get; } = [];
 
     public AsyncCommand ScanCommand { get; }
     public AsyncCommand ImportFrontendsCommand { get; }
@@ -65,6 +67,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public AsyncCommand CheckAppUpdateCommand { get; }
     public AsyncCommand ApplyScheduleCommand { get; }
     public RelayCommand AdvancedCommand { get; }
+    public RelayCommand GeneratePairingCodeCommand { get; }
+    public RelayCommand RevokePairedDeviceCommand { get; }
 
     public string PlatformText => $"v{AutoEmulatorUpdate.Core.BuildInfo.Version} • {_platform.RuntimeId}";
     public string InstalledHeader => $"Installed ({Installed.Count})";
@@ -119,6 +123,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private string _settingsStatus = "";
     public string SettingsStatus { get => _settingsStatus; set => Set(ref _settingsStatus, value); }
+
+    private string _pairingCodeDisplay = "No active pairing code";
+    public string PairingCodeDisplay { get => _pairingCodeDisplay; private set => Set(ref _pairingCodeDisplay, value); }
+
+    private string _pairingCodeExpiry = "Generate a code when the mobile companion is ready to pair.";
+    public string PairingCodeExpiry { get => _pairingCodeExpiry; private set => Set(ref _pairingCodeExpiry, value); }
+
+    private CompanionDevice? _selectedPairedDevice;
+    public CompanionDevice? SelectedPairedDevice
+    {
+        get => _selectedPairedDevice;
+        set
+        {
+            if (!Set(ref _selectedPairedDevice, value)) return;
+            RevokePairedDeviceCommand.RaiseCanExecuteChanged();
+        }
+    }
 
     public MaintenanceMode MaintenanceMode
     {
@@ -202,6 +223,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         CheckAppUpdateCommand = new AsyncCommand(() => CheckAppUpdateAsync(true));
         ApplyScheduleCommand = new AsyncCommand(ApplyScheduleAsync);
         AdvancedCommand = new RelayCommand(OpenAdvanced);
+        GeneratePairingCodeCommand = new RelayCommand(GeneratePairingCode);
+        RevokePairedDeviceCommand = new RelayCommand(RevokePairedDevice, () => SelectedPairedDevice is not null);
     }
 
     public async Task InitializeAsync()
@@ -642,6 +665,28 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         try { await _store.SaveAsync(_paths.SettingsFile, _settings); }
         catch (Exception ex) { Append($"Settings save error: {ex.Message}"); }
+    }
+
+    private void GeneratePairingCode()
+    {
+        var pairing = _companionPairing.CreateCode();
+        PairingCodeDisplay = pairing.Code;
+        PairingCodeExpiry = $"Expires at {pairing.ExpiresAt.LocalDateTime:t}. The code works once.";
+        SettingsStatus = "Mobile pairing code generated. Remote networking remains disabled until encrypted transport is ready.";
+        Append("Generated a one-time mobile pairing code.");
+    }
+
+    private void RevokePairedDevice()
+    {
+        if (SelectedPairedDevice is null) return;
+        var device = SelectedPairedDevice;
+        if (_companionPairing.Revoke(device.Id))
+        {
+            PairedDevices.Remove(device);
+            SelectedPairedDevice = null;
+            SettingsStatus = $"Revoked mobile access for {device.Name}.";
+            Append(SettingsStatus);
+        }
     }
 
     private void ResetCancellation()
