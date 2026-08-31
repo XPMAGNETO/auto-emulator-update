@@ -7,6 +7,17 @@ namespace AutoEmulatorUpdate.Tests;
 
 public sealed class SelfUpdateServiceTests
 {
+    [Theory]
+    [InlineData(false, "10.1.0", true)]
+    [InlineData(true, "10.1.0", false)]
+    [InlineData(true, "10.1.0-alpha.14", true)]
+    [InlineData(true, "10.1.0-rc.1", true)]
+    public void ReleaseChannel_PreventsStableBuildsFromReceivingPrereleases(
+        bool prerelease, string currentVersion, bool expected)
+    {
+        Assert.Equal(expected, SelfUpdateService.ShouldConsiderRelease(prerelease, currentVersion));
+    }
+
     [Fact]
     public async Task DownloadAndVerifyAsync_AcceptsMatchingSha256()
     {

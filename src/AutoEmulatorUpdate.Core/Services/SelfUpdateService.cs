@@ -35,6 +35,8 @@ public sealed class SelfUpdateService(HttpClient http)
         foreach (var release in doc.RootElement.EnumerateArray())
         {
             if (release.TryGetProperty("draft", out var draft) && draft.GetBoolean()) continue;
+            var prerelease = release.TryGetProperty("prerelease", out var pre) && pre.GetBoolean();
+            if (!ShouldConsiderRelease(prerelease, AutoEmulatorUpdate.Core.BuildInfo.Version)) continue;
             var tag = release.GetProperty("tag_name").GetString()?.TrimStart('v', 'V');
             if (string.IsNullOrWhiteSpace(tag)) continue;
             if (CompareVersions(tag, AutoEmulatorUpdate.Core.BuildInfo.Version) <= 0) continue;
@@ -249,6 +251,9 @@ public sealed class SelfUpdateService(HttpClient http)
         }
         return 0;
     }
+
+    internal static bool ShouldConsiderRelease(bool prerelease, string currentVersion) =>
+        !prerelease || currentVersion.Contains('-', StringComparison.Ordinal);
 
     private static (int[] Core, string[] Pre) ParseVersion(string value)
     {
