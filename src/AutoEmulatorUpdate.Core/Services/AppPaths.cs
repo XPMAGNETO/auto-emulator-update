@@ -11,6 +11,7 @@ public sealed class AppPaths
     public string CacheRoot => Path.Combine(DataRoot, "cache");
     public string UserManifestRoot => Path.Combine(DataRoot, "manifests");
     public string LogsRoot => Path.Combine(DataRoot, "logs");
+    public string CompanionCertificateFile => Path.Combine(DataRoot, "companion-identity.pfx");
 
     public AppPaths()
     {
