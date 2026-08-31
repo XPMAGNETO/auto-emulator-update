@@ -51,6 +51,13 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict></plist>
 EOF
 
+# Seal the finished bundle after every executable, resource, icon, and plist is
+# in place. This prevents Gatekeeper from reporting that the bundle was changed
+# or damaged. A Developer ID signature and notarization can replace this ad-hoc
+# signature when Apple distribution credentials are configured.
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
 # Free disposable build caches before creating the image.
 rm -rf "$ROOT/src/AutoEmulatorUpdate.App/bin" "$ROOT/src/AutoEmulatorUpdate.App/obj" \
        "$ROOT/src/AutoEmulatorUpdate.Core/bin" "$ROOT/src/AutoEmulatorUpdate.Core/obj" || true
