@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace AutoEmulatorUpdate.Core.Services;
 
@@ -11,12 +12,20 @@ public sealed class CompanionPairingService
 {
     private readonly object _gate = new();
     private readonly TimeProvider _time;
+    private readonly string? _storagePath;
     private readonly Dictionary<string, AuthorizedDevice> _devices = new(StringComparer.Ordinal);
     private string? _codeHash;
     private DateTimeOffset _codeExpiresAt;
+    private int _failedAttempts;
 
-    public CompanionPairingService(TimeProvider? timeProvider = null) =>
+    public CompanionPairingService(TimeProvider? timeProvider = null) : this(null, timeProvider) { }
+
+    public CompanionPairingService(string? storagePath, TimeProvider? timeProvider = null)
+    {
         _time = timeProvider ?? TimeProvider.System;
+        _storagePath = storagePath;
+        LoadDevices();
+    }
 
     public CompanionPairingCode CreateCode(TimeSpan? lifetime = null)
     {
@@ -29,6 +38,7 @@ public sealed class CompanionPairingService
         {
             _codeHash = Hash(code);
             _codeExpiresAt = _time.GetUtcNow().Add(duration);
+            _failedAttempts = 0;
         }
         return new CompanionPairingCode(code, _codeExpiresAt);
     }
@@ -41,8 +51,14 @@ public sealed class CompanionPairingService
         lock (_gate)
         {
             var now = _time.GetUtcNow();
-            if (_codeHash is null || now > _codeExpiresAt || !FixedTimeEquals(_codeHash, Hash(code.Trim())))
+            if (_codeHash is null || now > _codeExpiresAt)
                 throw new UnauthorizedAccessException("The pairing code is invalid or expired.");
+            if (!FixedTimeEquals(_codeHash, Hash(code.Trim())))
+            {
+                _failedAttempts++;
+                if (_failedAttempts >= 5) _codeHash = null;
+                throw new UnauthorizedAccessException("The pairing code is invalid or expired.");
+            }
 
             // A one-time code is consumed even if the client loses the response.
             _codeHash = null;
@@ -51,6 +67,7 @@ public sealed class CompanionPairingService
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             var device = new CompanionDevice(Guid.NewGuid().ToString("N"), deviceName.Trim(), now, now);
             _devices[device.Id] = new AuthorizedDevice(device, Hash(token));
+            SaveDevices();
             return new CompanionPairingResult(token, device);
         }
     }
@@ -79,7 +96,34 @@ public sealed class CompanionPairingService
 
     public bool Revoke(string deviceId)
     {
-        lock (_gate) return _devices.Remove(deviceId);
+        lock (_gate)
+        {
+            var removed = _devices.Remove(deviceId);
+            if (removed) SaveDevices();
+            return removed;
+        }
+    }
+
+    private void LoadDevices()
+    {
+        if (string.IsNullOrWhiteSpace(_storagePath) || !File.Exists(_storagePath)) return;
+        try
+        {
+            var saved = JsonSerializer.Deserialize<AuthorizedDevice[]>(File.ReadAllText(_storagePath)) ?? [];
+            foreach (var device in saved) _devices[device.Device.Id] = device;
+        }
+        catch (JsonException) { }
+    }
+
+    private void SaveDevices()
+    {
+        if (string.IsNullOrWhiteSpace(_storagePath)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(_storagePath)!);
+        var temporary = _storagePath + ".tmp";
+        File.WriteAllText(temporary, JsonSerializer.Serialize(_devices.Values.ToArray()));
+        File.Move(temporary, _storagePath, true);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(_storagePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
     }
 
     private static string Hash(string value) =>
@@ -88,5 +132,5 @@ public sealed class CompanionPairingService
     private static bool FixedTimeEquals(string left, string right) =>
         CryptographicOperations.FixedTimeEquals(Convert.FromHexString(left), Convert.FromHexString(right));
 
-    private sealed record AuthorizedDevice(CompanionDevice Device, string TokenHash);
+    public sealed record AuthorizedDevice(CompanionDevice Device, string TokenHash);
 }

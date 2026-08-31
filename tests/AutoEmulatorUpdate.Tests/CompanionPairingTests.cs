@@ -36,4 +36,24 @@ public sealed class CompanionPairingTests
         Assert.Throws<ArgumentOutOfRangeException>(() => service.CreateCode(TimeSpan.Zero));
         Assert.Throws<ArgumentOutOfRangeException>(() => service.CreateCode(TimeSpan.FromHours(1)));
     }
+
+    [Fact]
+    public void AuthorizedDevice_PersistsAcrossServiceRestart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "aeu-pairing-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(root, "devices.json");
+        try
+        {
+            var first = new CompanionPairingService(path);
+            var code = first.CreateCode();
+            var paired = first.Pair(code.Code, "Phone");
+
+            var restarted = new CompanionPairingService(path);
+            Assert.Equal("Phone", restarted.Authorize(paired.AccessToken)?.Name);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
 }
