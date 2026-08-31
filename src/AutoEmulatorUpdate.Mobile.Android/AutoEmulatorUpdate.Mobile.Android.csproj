@@ -11,7 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <AndroidResource Include="..\AutoEmulatorUpdate.App\Assets\app-icon.png">
-      <Link>Resources\drawable\app_icon.png</Link>
+      <LogicalName>drawable/app_icon.png</LogicalName>
     </AndroidResource>
   </ItemGroup>
   <ItemGroup>
