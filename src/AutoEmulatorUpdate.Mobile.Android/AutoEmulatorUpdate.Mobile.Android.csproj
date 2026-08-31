@@ -5,7 +5,7 @@
     <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <ApplicationId>com.xpmagneto.autoemulatorupdater</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>10.1.0-alpha.11</ApplicationDisplayVersion>
+    <ApplicationDisplayVersion>10.1.0-alpha.12</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
   </PropertyGroup>
