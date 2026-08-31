@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 30
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Validate release version
         shell: pwsh
         run: |
@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Validate release version
         run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
       - name: Cache NuGet packages
@@ -130,7 +130,7 @@ jobs:
             runner: macos-latest
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Validate release version
         run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
       - name: Cache NuGet packages
