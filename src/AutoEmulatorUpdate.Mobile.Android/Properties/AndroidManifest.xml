@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
   <uses-permission android:name="android.permission.INTERNET" />
-  <application android:label="Auto Emulator Updater" android:usesCleartextTraffic="false" />
+  <application android:label="Auto Emulator Updater" android:icon="@drawable/app_icon" android:usesCleartextTraffic="false" />
 </manifest>

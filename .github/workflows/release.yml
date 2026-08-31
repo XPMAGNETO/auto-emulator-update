@@ -160,8 +160,35 @@ jobs:
           path: artifacts/*.dmg*
           if-no-files-found: error
 
+  android:
+    timeout-minutes: 35
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate release version
+        run: test "v$(tr -d '\r\n' < VERSION)" = "${{ env.RELEASE_VERSION }}"
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Build Android APK
+        run: |
+          dotnet publish src/AutoEmulatorUpdate.Mobile.Android -c Release -p:AndroidPackageFormats=apk
+          APK="$(find src/AutoEmulatorUpdate.Mobile.Android/bin/Release/net10.0-android -name '*-Signed.apk' -print -quit)"
+          if [ -z "$APK" ]; then APK="$(find src/AutoEmulatorUpdate.Mobile.Android/bin/Release/net10.0-android -name '*.apk' -print -quit)"; fi
+          test -s "$APK"
+          mkdir -p artifacts/release
+          cp "$APK" "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Android.apk"
+          sha256sum "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Android.apk" > "artifacts/release/AutoEmulatorUpdate-${{ env.RELEASE_VERSION }}-Android.apk.sha256"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: artifacts/release/*
+          if-no-files-found: error
+
   release:
-    needs: [windows, linux, macos]
+    needs: [windows, linux, macos, android]
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
@@ -184,6 +211,7 @@ jobs:
               f'AutoEmulatorUpdate-{version}-Batocera-x64.AppImage',
               f'AutoEmulatorUpdate-{version}-osx-x64.dmg',
               f'AutoEmulatorUpdate-{version}-osx-arm64.dmg',
+              f'AutoEmulatorUpdate-{version}-Android.apk',
           ]
           missing = [x for x in required if x not in files]
           if missing:
