@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using AutoEmulatorUpdate.Core.Models;
@@ -34,6 +35,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ISchedulerService _scheduler = new CrossPlatformSchedulerService();
     private readonly NotificationService _notifications = new();
     private readonly CompanionPairingService _companionPairing;
+    private readonly CompanionCertificateService _companionCertificates = new();
+    private readonly CompanionHost _companionHost = new();
+    private X509Certificate2? _companionCertificate;
+    private CompanionSnapshot _companionSnapshot = new(0, 0, "Desktop is starting.", [], []);
     private AppSettings _settings = new();
     private IReadOnlyList<EmulatorDefinition> _definitions = [];
     private CancellationTokenSource _cts = new();
@@ -67,7 +72,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public AsyncCommand CheckAppUpdateCommand { get; }
     public AsyncCommand ApplyScheduleCommand { get; }
     public RelayCommand AdvancedCommand { get; }
-    public RelayCommand GeneratePairingCodeCommand { get; }
+    public AsyncCommand GeneratePairingCodeCommand { get; }
+    public AsyncCommand CopyPairingAddressCommand { get; }
     public RelayCommand RevokePairedDeviceCommand { get; }
 
     public string PlatformText => $"v{AutoEmulatorUpdate.Core.BuildInfo.Version} • {_platform.RuntimeId}";
@@ -129,6 +135,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private string _pairingCodeExpiry = "Generate a code when the mobile companion is ready to pair.";
     public string PairingCodeExpiry { get => _pairingCodeExpiry; private set => Set(ref _pairingCodeExpiry, value); }
+    private string _companionAddress = "Companion server stopped";
+    public string CompanionAddress { get => _companionAddress; private set => Set(ref _companionAddress, value); }
+
+    private string _companionFingerprint = "";
+    public string CompanionFingerprint { get => _companionFingerprint; private set => Set(ref _companionFingerprint, value); }
 
     private CompanionDevice? _selectedPairedDevice;
     public CompanionDevice? SelectedPairedDevice
@@ -224,7 +235,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         CheckAppUpdateCommand = new AsyncCommand(() => CheckAppUpdateAsync(true));
         ApplyScheduleCommand = new AsyncCommand(ApplyScheduleAsync);
         AdvancedCommand = new RelayCommand(OpenAdvanced);
-        GeneratePairingCodeCommand = new RelayCommand(GeneratePairingCode);
+        GeneratePairingCodeCommand = new AsyncCommand(GeneratePairingCodeAsync);
+        CopyPairingAddressCommand = new AsyncCommand(CopyPairingAddressAsync);
         RevokePairedDeviceCommand = new RelayCommand(RevokePairedDevice, () => SelectedPairedDevice is not null);
     }
 
@@ -240,6 +252,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         RefreshBackups();
         StatusText = $"Ready. {_definitions.Count} emulator definitions loaded.";
         Append(StatusText);
+        RefreshCompanionSnapshot();
 
         if (_settings.AutoAppUpdates)
             _ = CheckAppUpdateAsync(false);
@@ -670,14 +683,91 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         catch (Exception ex) { Append($"Settings save error: {ex.Message}"); }
     }
 
-    private void GeneratePairingCode()
+    private async Task GeneratePairingCodeAsync()
     {
+        if (_companionCertificate is null)
+        {
+            var identity = _companionCertificates.LoadOrCreate(_paths.CompanionCertificateFile);
+            _companionCertificate = identity.Certificate;
+            CompanionFingerprint = $"Certificate pin: {identity.Fingerprint}";
+            await _companionHost.StartAsync(_companionCertificate, _companionPairing, () => _companionSnapshot, ExecuteCompanionCommandAsync,
+                device => Dispatcher.UIThread.Post(() => { if (PairedDevices.All(x => x.Id != device.Id)) PairedDevices.Add(device); }));
+            CompanionAddress = $"https://{GetCompanionHostAddress()}:{CompanionHost.DefaultPort}#{identity.Fingerprint}";
+        }
         var pairing = _companionPairing.CreateCode();
         PairingCodeDisplay = pairing.Code;
         PairingCodeExpiry = $"Expires at {pairing.ExpiresAt.LocalDateTime:t}. The code works once.";
-        SettingsStatus = "Mobile pairing code generated. Remote networking remains disabled until encrypted transport is ready.";
+        SettingsStatus = "Encrypted mobile companion service is ready for pairing.";
         Append("Generated a one-time mobile pairing code.");
     }
+
+    private async Task CopyPairingAddressAsync()
+    {
+        if (!CompanionAddress.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            SettingsStatus = "Generate a pairing code before copying the companion address.";
+            return;
+        }
+
+        var clipboard = _owner is null ? null : TopLevel.GetTopLevel(_owner)?.Clipboard;
+        if (clipboard is null)
+        {
+            SettingsStatus = "Clipboard is unavailable on this platform or session.";
+            return;
+        }
+
+        await clipboard.SetTextAsync(CompanionAddress);
+        SettingsStatus = "Companion address and certificate pin copied.";
+    }
+
+    public async Task StopCompanionAsync()
+    {
+        await _companionHost.StopAsync();
+        _companionCertificate?.Dispose();
+        _companionCertificate = null;
+        CompanionAddress = "Companion server stopped";
+        CompanionFingerprint = "";
+    }
+
+    private Task<CompanionSnapshot> ExecuteCompanionCommandAsync(string command)
+    {
+        var accepted = command switch
+        {
+            "check-all" => true,
+            "update-all" => true,
+            _ => false
+        };
+
+        if (accepted)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (command == "check-all")
+                    CheckCommand.Execute(null);
+                else
+                {
+                    UpdateAllCommand.Execute(null);
+                    RunQueueCommand.Execute(null);
+                }
+            });
+        }
+
+        return Task.FromResult(_companionSnapshot with
+        {
+            StatusMessage = accepted ? $"Accepted remote command: {command}." : $"Rejected unknown remote command: {command}."
+        });
+    }
+
+    private void RefreshCompanionSnapshot() => _companionSnapshot = new CompanionSnapshot(
+        Installed.Count,
+        UpdatesAvailableCount,
+        StatusText,
+        Installed.Select(x => new CompanionEmulatorStatus(x.Definition.Name, x.CurrentVersion, x.LatestVersion, x.Status)).ToArray(),
+        RecentHistory.Select(x => new CompanionActivityStatus(x.Timestamp, $"{x.Emulator}: {x.Action} — {x.Result}")).ToArray());
+
+    private static string GetCompanionHostAddress() => Dns.GetHostAddresses(Dns.GetHostName())
+        .FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(x))?.ToString()
+        ?? "localhost";
 
     private void RevokePairedDevice()
     {
@@ -720,6 +810,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         Raise(nameof(StatusOverview));
         Raise(nameof(HomeSummary));
         Raise(nameof(InstalledHeader));
+        RefreshCompanionSnapshot();
     }
 
     private void Raise([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
