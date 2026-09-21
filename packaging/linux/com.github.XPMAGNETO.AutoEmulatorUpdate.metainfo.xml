@@ -9,5 +9,5 @@
     <p>Auto Emulator Updater discovers supported emulators and helps keep their installations current.</p>
   </description>
   <url type="homepage">https://github.com/XPMAGNETO/auto-emulator-update</url>
-  <launchable type="desktop-id">auto-emulator-update.desktop</launchable>
+  <launchable type="desktop-id">com.github.XPMAGNETO.AutoEmulatorUpdate.desktop</launchable>
 </component>

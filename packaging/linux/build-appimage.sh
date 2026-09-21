@@ -12,9 +12,9 @@ mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/i
 cp -a "$PUBLISH/." "$APPDIR/usr/bin/"
 cp "$ROOT/packaging/linux/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/AutoEmulatorUpdate.App"
-cp "$ROOT/packaging/linux/auto-emulator-update.desktop" "$APPDIR/auto-emulator-update.desktop"
-cp "$ROOT/packaging/linux/auto-emulator-update.desktop" "$APPDIR/usr/share/applications/"
-cp "$ROOT/packaging/linux/com.github.XPMAGNETO.AutoEmulatorUpdate.metainfo.xml" "$APPDIR/usr/share/metainfo/"
+cp "$ROOT/packaging/linux/auto-emulator-update.desktop" "$APPDIR/com.github.XPMAGNETO.AutoEmulatorUpdate.desktop"
+cp "$ROOT/packaging/linux/auto-emulator-update.desktop" "$APPDIR/usr/share/applications/com.github.XPMAGNETO.AutoEmulatorUpdate.desktop"
+cp "$ROOT/packaging/linux/com.github.XPMAGNETO.AutoEmulatorUpdate.metainfo.xml" "$APPDIR/usr/share/metainfo/com.github.XPMAGNETO.AutoEmulatorUpdate.appdata.xml"
 if [[ -f "$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.png" ]]; then
   cp "$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.png" "$APPDIR/auto-emulator-update.png"
   cp "$ROOT/src/AutoEmulatorUpdate.App/Assets/app-icon.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/auto-emulator-update.png"
